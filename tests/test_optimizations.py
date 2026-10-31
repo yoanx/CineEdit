@@ -9,7 +9,7 @@ import numpy as np
 
 import cineblur.preview as preview
 from cineblur.config import BlurConfig
-from cineblur.media import Decoder
+from cineblur.media import Decoder, unique_output_path
 from cineblur.pipeline import MotionBlurRenderer
 from cineblur.webui import Handler, QuietThreadingHTTPServer, build_cfg
 
@@ -28,8 +28,45 @@ class QualityPresetTests(unittest.TestCase):
         self.assertEqual(standard.flow_iters, 8)
         self.assertEqual(fine.flow_iters, 12)
 
+    def test_build_cfg_uses_selected_compute_device(self):
+        cfg = build_cfg({"quality": "fast", "device": "cpu"})
+
+        self.assertEqual(cfg.device, "cpu")
+
+
+class OutputPathTests(unittest.TestCase):
+    def test_existing_render_output_gets_next_numbered_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = os.path.join(tmp, "clip_blur.mp4")
+            with open(first, "wb"):
+                pass
+
+            second = unique_output_path(first)
+            self.assertEqual(second, os.path.join(tmp, "clip_blur_2.mp4"))
+
+            with open(second, "wb"):
+                pass
+            third = unique_output_path(first)
+
+        self.assertEqual(third, os.path.join(tmp, "clip_blur_3.mp4"))
+
 
 class RenderFastPathTests(unittest.TestCase):
+    def test_motion_blur_cancel_skips_engine_initialization(self):
+        renderer = MotionBlurRenderer(BlurConfig(device="cpu"))
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(renderer, "_ensure_engine") as ensure_engine:
+                stats = renderer.render(
+                    DEMO,
+                    os.path.join(tmp, "cancelled.mp4"),
+                    cancel=lambda: True,
+                )
+
+        self.assertTrue(stats["cancelled"])
+        self.assertEqual(stats["frames"], 0)
+        ensure_engine.assert_not_called()
+
     def test_decoder_closes_both_ffmpeg_pipes(self):
         decoder = Decoder(DEMO, 64, 64, dur=0.1)
         frame = decoder.read()

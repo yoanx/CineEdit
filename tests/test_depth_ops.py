@@ -1,7 +1,12 @@
 import unittest
 
 import torch
-from cineblur.depth_ops import depth_range, normalize_depth, temporal_blend
+from cineblur.depth_ops import (
+    depth_range,
+    is_processed_depth_source,
+    normalize_depth,
+    temporal_blend,
+)
 
 
 class DepthOpsTests(unittest.TestCase):
@@ -30,3 +35,15 @@ class DepthOpsTests(unittest.TestCase):
 
         self.assertTrue(torch.isclose(out[0, 0, 0, 0], torch.tensor(0.25)))
         self.assertTrue(torch.isclose(out[0, 0, 0, 1], torch.tensor(0.5)))
+
+    def test_detects_already_blurred_depth_source(self):
+        self.assertTrue(
+            is_processed_depth_source(
+                r"C:\Videos\Valorant 2026.10.20.DVR_blur.mp4"
+            )
+        )
+        self.assertFalse(
+            is_processed_depth_source(
+                r"C:\Videos\Valorant 2026.10.20.DVR.mp4"
+            )
+        )

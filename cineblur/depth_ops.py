@@ -1,6 +1,15 @@
 from __future__ import annotations
 
+import os
+
 import torch
+
+
+def is_processed_depth_source(src: str) -> bool:
+    """Return whether a path looks like an existing motion-blur output."""
+    name = os.path.basename(src.replace("\\", "/"))
+    stem, _ = os.path.splitext(name)
+    return stem.lower().endswith("_blur")
 
 
 def depth_range(depth: torch.Tensor, sample_step: int = 8) -> tuple[float, float]:

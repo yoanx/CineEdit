@@ -24,7 +24,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from .config import BlurConfig, DepthConfig
 from .depth_pipeline import DepthRenderer
-from .media import find_exe, probe
+from .media import find_exe, probe, unique_output_path
 from .pipeline import MotionBlurRenderer
 from .weights import depth_model_available
 
@@ -125,6 +125,7 @@ def build_cfg(p: dict, preview: bool = False) -> BlurConfig:
         flow_iters=q["flow_iters"],
         early_exit=not _flag(p, "no_early_exit"),
         flow_fp16=_flag(p, "fp16"),
+        device=p.get("device") or "auto",
         codec=p.get("codec") or "auto",
         preview_height=int(_num(p.get("preview"), 0)),
         trim_start=_num(p.get("trim_start"), 0.0),
@@ -222,6 +223,8 @@ def start_job(payload: dict) -> dict:
             return {"ok": False, "error": "输入文件不存在"}
         if not dst:
             dst = default_output(src, mode)
+        if _flag(payload, "preserve_outputs", True):
+            dst = unique_output_path(dst)
         cfg = build_depth_cfg(payload) if mode == "depth" else build_cfg(payload)
         JOB.update(running=True, log=[], result=None, error=None, output=dst,
                    progress={"done": 0, "total": 0, "fps": 0.0, "eta": 0.0})

@@ -74,6 +74,12 @@ class MotionBlurRenderer:
         cfg = self.cfg
         if not os.path.exists(src):
             raise FileNotFoundError(src)
+        log = log or (lambda s: None)
+        cancel_started = time.time()
+        if cancel and cancel():
+            log("已取消")
+            return {"cancelled": True, "frames": 0,
+                    "seconds": time.time() - cancel_started, "profile": {}}
         info = probe(src)
         w, h = target_size(info, cfg.preview_height)
         os.makedirs(os.path.dirname(os.path.abspath(dst)) or ".", exist_ok=True)
@@ -90,7 +96,10 @@ class MotionBlurRenderer:
             # 在计时开始前完成权重加载：否则短片段会把 2~3 秒的模型加载摊进 fps，
             # 报出一个远低于真实的数字。
             _ = engine.net
-        log = log or (lambda s: None)
+            if cancel and cancel():
+                log("已取消")
+                return {"cancelled": True, "frames": 0,
+                        "seconds": time.time() - cancel_started, "profile": {}}
         log(f"输入 {info.width}x{info.height} @ {fps_f:.3f}fps  "
             f"{info.nb_frames} 帧  处理尺寸 {w}x{h}")
         if ss > 0 or dur:

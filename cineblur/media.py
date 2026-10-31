@@ -17,6 +17,19 @@ from fractions import Fraction
 import numpy as np
 
 
+def unique_output_path(path: str) -> str:
+    """Return a numbered sibling path when the requested output already exists."""
+    if not os.path.exists(path):
+        return path
+    stem, ext = os.path.splitext(path)
+    index = 2
+    while True:
+        candidate = f"{stem}_{index}{ext}"
+        if not os.path.exists(candidate):
+            return candidate
+        index += 1
+
+
 # ---------------------------------------------------------------- 可执行文件定位
 
 def _candidate_dirs() -> list[str]:

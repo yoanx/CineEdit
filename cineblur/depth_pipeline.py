@@ -12,7 +12,12 @@ import torch
 
 from .config import DepthConfig
 from .depth_engine import DepthEngine, get_depth_engine
-from .depth_ops import depth_range, normalize_depth, temporal_blend
+from .depth_ops import (
+    depth_range,
+    is_processed_depth_source,
+    normalize_depth,
+    temporal_blend,
+)
 from .media import Decoder, Encoder, VideoInfo, probe
 
 
@@ -91,6 +96,12 @@ class DepthRenderer:
         cfg = self.cfg
         if not os.path.exists(src):
             raise FileNotFoundError(src)
+        log = log or (lambda message: None)
+        cancel_started = time.time()
+        if cancel and cancel():
+            log("Cancelled")
+            return {"cancelled": True, "frames": 0,
+                    "seconds": time.time() - cancel_started, "profile": {}}
 
         info = probe(src)
         width, height = _target_size(info, cfg.output_height)
@@ -102,12 +113,20 @@ class DepthRenderer:
         fps = info.fps
         fps_value = float(fps)
         engine = self._ensure_engine()
-        log = log or (lambda message: None)
+        if cancel and cancel():
+            log("Cancelled")
+            return {"cancelled": True, "frames": 0,
+                    "seconds": time.time() - cancel_started, "profile": {}}
 
         log(
             f"Input {info.width}x{info.height} @ {fps_value:.3f}fps; "
             f"processing {width}x{height}"
         )
+        if is_processed_depth_source(src):
+            log(
+                "Warning: source is already motion-blurred; depth maps are "
+                "more reliable on the original clip"
+            )
         if trim_start or duration:
             end = trim_end if trim_end else info.duration
             log(f"Trim {trim_start:.2f}s -> {end:.2f}s")

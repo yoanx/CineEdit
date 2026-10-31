@@ -133,6 +133,14 @@ button{cursor:pointer}
   border-radius:var(--r-sm);background:rgba(170,65,45,.07);
   color:var(--err);font-size:11.5px;line-height:1.45;
 }
+.source-warning{
+  display:grid;gap:8px;margin:8px 0 2px;padding:9px 10px;
+  border:1px solid rgba(164,103,28,.32);border-radius:var(--r-sm);
+  background:rgba(164,103,28,.07);color:var(--ink-2);
+  font-size:11.5px;line-height:1.45;
+}
+.source-warning .btn{justify-self:start;color:var(--warn);border-color:rgba(164,103,28,.35)}
+.source-warning .btn:hover{background:rgba(164,103,28,.08);border-color:rgba(164,103,28,.55)}
 
 /* 舞台 */
 .stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--stage)}
@@ -447,6 +455,66 @@ select.inline.wide{width:100%;text-align:left;border-color:var(--rule);
 .sheet-ls div i{font-style:normal;font-size:10px;color:var(--ink-3);width:11px;flex:none}
 .sheet-ft{display:flex;justify-content:flex-end;gap:8px;padding:11px 18px;
   border-top:1px solid var(--rule);flex:none}
+.settings-panel{
+  width:min(780px,94vw);height:min(680px,86vh);display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+  box-shadow:0 32px 80px -24px rgba(0,0,0,.72);overflow:hidden;
+}
+.settings-head{
+  flex:none;display:flex;align-items:center;gap:16px;padding:18px 22px;
+  border-bottom:1px solid var(--rule);
+}
+.settings-head>div{min-width:0}
+.settings-head b{display:block;font-size:15px;font-weight:600}
+.settings-head small{display:block;margin-top:2px;font-size:11.5px;color:var(--ink-3)}
+.settings-head .icon-btn{margin-left:auto;flex:none}
+.settings-body{display:grid;grid-template-columns:176px minmax(0,1fr);min-height:0;flex:1}
+.settings-nav{
+  display:flex;flex-direction:column;gap:4px;padding:12px;
+  border-right:1px solid var(--rule);background:var(--sunken);
+}
+.settings-nav button{
+  min-height:40px;padding:0 12px;border:1px solid transparent;border-radius:8px;
+  background:transparent;color:var(--ink-3);text-align:left;font-size:12.5px;
+}
+.settings-nav button:hover{background:#1d1d20;color:var(--ink)}
+.settings-nav button.on{
+  background:#232326;border-color:var(--rule-2);color:var(--ink);font-weight:600;
+}
+.settings-content{min-width:0;overflow:auto;padding:6px 22px 18px;scrollbar-color:var(--rule-2) transparent}
+.settings-sec h3{font-size:13px;font-weight:600;margin:18px 0 4px}
+.settings-sec>p{font-size:11.5px;color:var(--ink-3);line-height:1.55;margin-bottom:6px}
+.settings-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+  gap:20px;padding:14px 0;border-bottom:1px solid var(--rule);
+}
+.settings-row:last-child{border-bottom:0}
+.settings-row label,.settings-row strong{display:block;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.settings-row small{display:block;margin-top:3px;font-size:11px;line-height:1.45;color:var(--ink-3)}
+.settings-row select{min-width:172px}
+.settings-row .switch{margin:0;min-width:40px}
+.settings-row .switch i{
+  border:1px solid rgba(255,255,255,.2);background:#2b2b2e;
+}
+.settings-foot{
+  flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 22px;border-top:1px solid var(--rule);
+}
+.hide-shortcuts .tips{display:none!important}
+@media (max-width:680px){
+  .settings-panel{width:96vw;height:min(760px,92vh)}
+  .settings-head{padding:15px 16px}
+  .settings-body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  .settings-nav{
+    flex-direction:row;overflow-x:auto;padding:8px;border-right:0;
+    border-bottom:1px solid var(--rule);
+  }
+  .settings-nav button{min-width:76px;text-align:center;padding:0 10px}
+  .settings-content{padding:4px 16px 14px}
+  .settings-row{grid-template-columns:1fr;gap:9px}
+  .settings-row select{width:100%;min-width:0}
+  .settings-foot{padding:12px 16px}
+}
 
 /* ── 提示 ─────────────────────────────────────────────── */
 .toasts{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
@@ -904,6 +972,10 @@ select.inline{font-size:13px}
     <path d="m12 3 9 5-9 5-9-5 9-5Z"/>
     <path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>
   </symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24">
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
 </svg>
 <input type="file" id="fileInput" hidden
@@ -919,6 +991,10 @@ select.inline{font-size:13px}
       <b id="fileChipName">未打开素材</b><span id="fileMeta"></span>
     </div>
     <div class="spacer"></div>
+    <button class="icon-btn" id="settingsBtn" onclick="openSettings()"
+            aria-label="设置" title="设置" aria-haspopup="dialog" aria-expanded="false">
+      <svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg>
+    </button>
     <div class="lang-switch" role="group" aria-label="语言">
       <button type="button" data-lang="zh" class="on" aria-pressed="true">中</button>
       <button type="button" data-lang="en" aria-pressed="false">EN</button>
@@ -1002,7 +1078,7 @@ select.inline{font-size:13px}
           </button>
           <span class="tc"><b id="tcur">00:00.00</b> / <span id="tdur">00:00.00</span></span>
           <div class="spacer"></div>
-          <span class="tips"><kbd>←</kbd><kbd>→</kbd> 逐帧 · <kbd>⇧</kbd> 5 帧 · <kbd>空格</kbd> 渲染</span>
+          <span class="tips"><kbd>←</kbd><kbd>→</kbd> 逐帧 · <kbd>⇧</kbd> 5 帧 · <kbd>空格</kbd> <span id="playHint">连续预览</span></span>
         </div>
       </div>
     </section>
@@ -1114,6 +1190,11 @@ select.inline{font-size:13px}
               <div><span>时域稳定</span><small>减少静态区域闪烁</small></div>
               <input type="checkbox" id="depthTemporal" checked><i></i>
             </label>
+            <div class="source-warning" id="depthSourceWarning" hidden aria-live="polite">
+              <span id="depthSourceWarningText"></span>
+              <button type="button" class="btn ghost sm" id="depthSourceChoose"
+                      onclick="chooseVideo()"></button>
+            </div>
             <div class="model-state" id="depthModelState" hidden></div>
           </div>
         </div>
@@ -1169,6 +1250,95 @@ select.inline{font-size:13px}
   </div>
 </div>
 
+<div class="modal settings-modal" id="settingsModal">
+  <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="settings-head">
+      <div><b id="settingsTitle">设置</b><small>预览与输出偏好</small></div>
+      <button class="icon-btn" id="settingsClose" onclick="closeSettings()" aria-label="关闭设置">
+        <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <div class="settings-body">
+      <nav class="settings-nav" role="tablist" aria-label="设置分类">
+        <button type="button" class="on" data-settings-tab="preview" role="tab"
+                aria-selected="true" aria-controls="settingsPreview">预览</button>
+        <button type="button" data-settings-tab="performance" role="tab"
+                aria-selected="false" aria-controls="settingsPerformance">性能</button>
+        <button type="button" data-settings-tab="output" role="tab"
+                aria-selected="false" aria-controls="settingsOutput">输出</button>
+        <button type="button" data-settings-tab="interface" role="tab"
+                aria-selected="false" aria-controls="settingsInterface">界面</button>
+      </nav>
+      <div class="settings-content">
+        <section class="settings-sec" id="settingsPreview" role="tabpanel" data-settings-section="preview">
+          <h3>预览</h3>
+          <p>逐帧播放，每次只前进一个源帧。</p>
+          <div class="settings-row">
+            <div><label for="setPreviewHeight">预览分辨率</label><small>预览分辨率越低，播放越流畅。</small></div>
+            <select id="setPreviewHeight" class="inline wide" aria-label="预览分辨率">
+              <option value="540">1/2 分辨率</option>
+              <option value="270">1/4 分辨率</option>
+              <option value="0">源尺寸</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><label for="setPreviewQuality">预览质量</label><small>独立于最终渲染参数。</small></div>
+            <select id="setPreviewQuality" class="inline wide" aria-label="预览质量">
+              <option value="fast">快速</option>
+              <option value="turbo">极速</option>
+              <option value="follow">跟随当前参数</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><strong>循环预览</strong><small>播放到出点后回到入点继续。</small></div>
+            <label class="switch"><input type="checkbox" id="setLoopPreview"><i></i></label>
+          </div>
+        </section>
+
+        <section class="settings-sec" id="settingsPerformance" role="tabpanel"
+                 data-settings-section="performance" hidden>
+          <h3>性能</h3>
+          <p>计算设备会在下一次预览或渲染时生效。</p>
+          <div class="settings-row">
+            <div><label for="setDevice">计算设备</label><small>优先使用独立显卡，必要时可切到 CPU。</small></div>
+            <select id="setDevice" class="inline wide" aria-label="计算设备">
+              <option value="auto">自动选择</option>
+              <option value="cuda">使用 CUDA</option>
+              <option value="cpu">使用 CPU</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="settings-sec" id="settingsOutput" role="tabpanel"
+                 data-settings-section="output" hidden>
+          <h3>输出</h3>
+          <div class="settings-row">
+            <div><strong>保留历史产物</strong><small>保留同名输出的历史版本，并自动递增编号。</small></div>
+            <label class="switch"><input type="checkbox" id="setPreserveOutputs"><i></i></label>
+          </div>
+          <div class="settings-row">
+            <div><strong>自动打开输出目录</strong><small>渲染完成后自动打开文件所在目录。</small></div>
+            <label class="switch"><input type="checkbox" id="setAutoOpenOutput"><i></i></label>
+          </div>
+        </section>
+
+        <section class="settings-sec" id="settingsInterface" role="tabpanel"
+                 data-settings-section="interface" hidden>
+          <h3>界面</h3>
+          <div class="settings-row">
+            <div><strong>显示快捷键提示</strong><small>在时间轴右侧显示空格和逐帧快捷键。</small></div>
+            <label class="switch"><input type="checkbox" id="setShowShortcuts"><i></i></label>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="settings-foot">
+      <button class="btn ghost" id="settingsReset" onclick="resetSettings()">恢复默认</button>
+      <button class="btn solid" id="settingsDone" onclick="closeSettings()">完成</button>
+    </div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts" aria-live="assertive"></div>
 
 <script>
@@ -1177,6 +1347,8 @@ const $ = id => document.getElementById(id);
 const S = {
   src: "", dur: 0, fps: 30, t: 0, wipe: 50,
   mode: "compare", processMode: "blur", ctrl: null, running: false,
+  starting: false, cancelPending: false,
+  previewPlaying: false, previewPlaybackToken: 0, previewFrame: 0,
   frameReady: false, lastLatency: 0, previewPending: false,
   origKey: "", origUrl: "", blurUrl: "",
   uploading: false, cuda: false, gpuName: "",
@@ -1185,6 +1357,134 @@ const S = {
   breakdownParts: null
 };
 const PROCESS_STORAGE = "cineblur.mode";
+const SETTINGS_KEY = "cineblur.settings";
+const DEFAULT_SETTINGS = Object.freeze({
+  previewHeight: 540,
+  previewQuality: "fast",
+  loopPreview: false,
+  device: "auto",
+  preserveOutputs: true,
+  autoOpenOutput: false,
+  showShortcuts: true
+});
+function loadSettings(){
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}"); } catch(e){}
+  const settings = { ...DEFAULT_SETTINGS };
+  const height = Number(saved.previewHeight);
+  if ([0, 270, 540].includes(height)) settings.previewHeight = height;
+  if (["fast", "turbo", "follow"].includes(saved.previewQuality)) {
+    settings.previewQuality = saved.previewQuality;
+  }
+  if (["auto", "cuda", "cpu"].includes(saved.device)) settings.device = saved.device;
+  for (const key of ["loopPreview", "preserveOutputs", "autoOpenOutput", "showShortcuts"]){
+    if (typeof saved[key] === "boolean") settings[key] = saved[key];
+  }
+  return settings;
+}
+const APP_SETTINGS = loadSettings();
+let settingsReturnFocus = null;
+function persistSettings(){
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(APP_SETTINGS)); } catch(e){}
+}
+function applySettingsToControls(){
+  $("setPreviewHeight").value = String(APP_SETTINGS.previewHeight);
+  $("setPreviewQuality").value = APP_SETTINGS.previewQuality;
+  $("setLoopPreview").checked = APP_SETTINGS.loopPreview;
+  $("setDevice").value = APP_SETTINGS.device;
+  $("setPreserveOutputs").checked = APP_SETTINGS.preserveOutputs;
+  $("setAutoOpenOutput").checked = APP_SETTINGS.autoOpenOutput;
+  $("setShowShortcuts").checked = APP_SETTINGS.showShortcuts;
+}
+function applySettingsEffects(){
+  document.body.classList.toggle("hide-shortcuts", !APP_SETTINGS.showShortcuts);
+}
+function updateSettingsFromControls(event){
+  APP_SETTINGS.previewHeight = Number($("setPreviewHeight").value);
+  APP_SETTINGS.previewQuality = $("setPreviewQuality").value;
+  APP_SETTINGS.loopPreview = $("setLoopPreview").checked;
+  APP_SETTINGS.device = $("setDevice").value;
+  APP_SETTINGS.preserveOutputs = $("setPreserveOutputs").checked;
+  APP_SETTINGS.autoOpenOutput = $("setAutoOpenOutput").checked;
+  APP_SETTINGS.showShortcuts = $("setShowShortcuts").checked;
+  persistSettings();
+  applySettingsEffects();
+  if (["setPreviewHeight", "setPreviewQuality", "setDevice"].includes(event.target.id)) {
+    queuePreview(0);
+  }
+}
+function setSettingsTab(name){
+  document.querySelectorAll("[data-settings-tab]").forEach(button => {
+    const on = button.dataset.settingsTab === name;
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-selected", String(on));
+    button.tabIndex = on ? 0 : -1;
+  });
+  document.querySelectorAll("[data-settings-section]").forEach(section => {
+    section.hidden = section.dataset.settingsSection !== name;
+  });
+}
+function openSettings(){
+  stopPreviewPlayback();
+  settingsReturnFocus = document.activeElement;
+  applySettingsToControls();
+  setSettingsTab("preview");
+  $("settingsModal").classList.add("on");
+  $("settingsBtn").setAttribute("aria-expanded", "true");
+  setTimeout(() => document.querySelector('[data-settings-tab="preview"]')?.focus(), 0);
+}
+function closeSettings(){
+  if (!$("settingsModal").classList.contains("on")) return;
+  $("settingsModal").classList.remove("on");
+  $("settingsBtn").setAttribute("aria-expanded", "false");
+  if (settingsReturnFocus && settingsReturnFocus.focus) settingsReturnFocus.focus();
+  settingsReturnFocus = null;
+}
+function resetSettings(){
+  Object.assign(APP_SETTINGS, DEFAULT_SETTINGS);
+  persistSettings();
+  applySettingsToControls();
+  applySettingsEffects();
+  queuePreview(0);
+  toast(t("settingsRestored"));
+}
+function bindSettingsControls(){
+  const tabs = [...document.querySelectorAll("[data-settings-tab]")];
+  tabs.forEach((button, index) => {
+    button.addEventListener("click", () => setSettingsTab(button.dataset.settingsTab));
+    button.addEventListener("keydown", e => {
+      const direction = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1
+                      : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+      if (!direction) return;
+      e.preventDefault();
+      const target = tabs[(index + direction + tabs.length) % tabs.length];
+      setSettingsTab(target.dataset.settingsTab);
+      target.focus();
+    });
+  });
+  [
+    "setPreviewHeight", "setPreviewQuality", "setLoopPreview", "setDevice",
+    "setPreserveOutputs", "setAutoOpenOutput", "setShowShortcuts"
+  ].forEach(id => $(id).addEventListener("change", updateSettingsFromControls));
+  $("settingsModal").addEventListener("click", e => {
+    if (e.target.id === "settingsModal") closeSettings();
+  });
+  $("settingsModal").addEventListener("keydown", e => {
+    if (e.key !== "Tab") return;
+    const items = [...$("settingsModal").querySelectorAll(
+      "button:not(:disabled), input:not(:disabled), select:not(:disabled)"
+    )].filter(el => !el.closest("[hidden]"));
+    if (!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first){
+      e.preventDefault();
+      last.focus();
+    }else if (!e.shiftKey && document.activeElement === last){
+      e.preventDefault();
+      first.focus();
+    }
+  });
+}
 
 const STATIC_EN = {
   "未打开素材": "No video open",
@@ -1222,6 +1522,8 @@ const STATIC_EN = {
   "逐帧 ·": "frame ·",
   "5 帧 ·": "5 frames ·",
   "空格": "Space",
+  "连续预览": "Play preview",
+  "暂停预览": "Pause preview",
   "渲染": "Render",
   "快门角": "Shutter angle",
   "硬朗": "Crisp",
@@ -1257,6 +1559,38 @@ const STATIC_EN = {
   "选择此目录": "Choose this folder",
   "打开参数": "Open settings",
   "收起参数": "Close settings",
+  "设置": "Settings",
+  "预览与输出偏好": "Preview and output preferences",
+  "关闭设置": "Close settings",
+  "预览": "Preview",
+  "性能": "Performance",
+  "输出": "Output",
+  "界面": "Interface",
+  "设置分类": "Settings categories",
+  "预览分辨率": "Preview resolution",
+  "预览分辨率越低，播放越流畅。": "Lower preview resolution improves playback speed.",
+  "1/2 分辨率": "1/2 resolution",
+  "1/4 分辨率": "1/4 resolution",
+  "预览质量": "Preview quality",
+  "独立于最终渲染参数。": "Independent from final render settings.",
+  "跟随当前参数": "Follow current settings",
+  "循环预览": "Loop preview",
+  "播放到出点后回到入点继续。": "Return to the in point after reaching the out point.",
+  "计算设备": "Compute device",
+  "计算设备会在下一次预览或渲染时生效。": "Applies to the next preview or render.",
+  "优先使用独立显卡，必要时可切到 CPU。": "Prefer the discrete GPU, with CPU available as a fallback.",
+  "自动选择": "Auto",
+  "使用 CUDA": "Use CUDA",
+  "使用 CPU": "Use CPU",
+  "保留历史产物": "Preserve previous outputs",
+  "保留同名输出的历史版本，并自动递增编号。": "Keep previous versions and add numbered suffixes.",
+  "自动打开输出目录": "Open output folder when done",
+  "渲染完成后自动打开文件所在目录。": "Open the output folder automatically after rendering.",
+  "显示快捷键提示": "Show shortcut hints",
+  "在时间轴右侧显示空格和逐帧快捷键。": "Show space and frame-step shortcuts beside the timeline.",
+  "恢复默认": "Restore defaults",
+  "完成": "Done",
+  "逐帧播放，每次只前进一个源帧。": "Playback advances exactly one source frame at a time.",
   "关闭文件选择器": "Close file picker",
   "设置入点": "Set in point",
   "设置出点": "Set out point",
@@ -1300,6 +1634,9 @@ const I18N = {
     rangeFull: "整段",
     rangeValue: "{sec} s · {frames} 帧",
     previewLatency: "预览 {ms} ms · 540p",
+    previewLatencySize: "预览 {ms} ms · {size}",
+    sourceSize: "源尺寸",
+    settingsRestored: "设置已恢复默认",
     ready: "就绪",
     starting: "启动中",
     cancelling: "正在取消",
@@ -1311,6 +1648,8 @@ const I18N = {
     fpsSize: "{fps} fps · {size}",
     startRender: "开始渲染",
     cancelRender: "取消渲染",
+    playPreview: "连续预览",
+    pausePreview: "暂停预览",
     previewBusy: "渲染进行中，预览已暂停",
     previewFailed: "预览失败：{error}",
     originalPreviewFailed: "原图预览失败",
@@ -1332,6 +1671,8 @@ const I18N = {
     invertHintNormal: "近处为白，远处为黑",
     invertHintInverted: "近处为黑，远处为白",
     depthModelMissing: "未找到本地深度模型，请安装到 assets/weights/depth_anything_v2_small/",
+    depthSourceWarning: "当前是已模糊视频。模糊会放大彩色特效和叠加层，深度图建议改用原片。",
+    chooseOriginal: "选择原片",
     parentDir: "上级目录",
     selectDisk: "选择磁盘",
     breakdown: "分段 ms/帧 · 光流 {flow} · 积分 {render} · 解码 {dec} · 编码 {enc}"
@@ -1359,6 +1700,9 @@ const I18N = {
     rangeFull: "Full clip",
     rangeValue: "{sec} s · {frames} frames",
     previewLatency: "Preview {ms} ms · 540p",
+    previewLatencySize: "Preview {ms} ms · {size}",
+    sourceSize: "Source size",
+    settingsRestored: "Settings restored to defaults",
     ready: "Ready",
     starting: "Starting",
     cancelling: "Cancelling",
@@ -1370,6 +1714,8 @@ const I18N = {
     fpsSize: "{fps} fps · {size}",
     startRender: "Start render",
     cancelRender: "Cancel render",
+    playPreview: "Play preview",
+    pausePreview: "Pause preview",
     previewBusy: "Rendering in progress; preview paused",
     previewFailed: "Preview failed: {error}",
     originalPreviewFailed: "Original preview failed",
@@ -1391,6 +1737,8 @@ const I18N = {
     invertHintNormal: "Near is white, far is black",
     invertHintInverted: "Near is black, far is white",
     depthModelMissing: "Local depth model not found. Install it under assets/weights/depth_anything_v2_small/",
+    depthSourceWarning: "This clip is already motion-blurred. Blur can enlarge color effects and overlays, so depth maps are more reliable on the original video.",
+    chooseOriginal: "Choose original",
     parentDir: "Parent folder",
     selectDisk: "Choose drive",
     breakdown: "ms/frame · flow {flow} · integrate {render} · decode {dec} · encode {enc}"
@@ -1459,11 +1807,18 @@ function refreshDynamicLanguage(){
   $("eta").textContent = S.etaKey ? t(S.etaKey, S.etaVars) : "";
   updateDepthInvertHint();
   updateDepthModelState();
+  updateDepthSourceWarning();
+  updatePreviewPlaybackHint();
   syncAngle();
   costHint();
   drawRange();
   setViewLabels();
-  if (S.lastLatency) $("latency").textContent = t("previewLatency", {ms: Math.round(S.lastLatency)});
+  if (S.lastLatency){
+    $("latency").textContent = t("previewLatencySize", {
+      ms: Math.round(S.lastLatency),
+      size: previewSizeLabel()
+    });
+  }
   renderBreakdown();
 }
 function setLanguage(lang, persist = true){
@@ -1557,6 +1912,18 @@ function updateDepthModelState(){
   el.hidden = !missing;
   el.textContent = missing ? t("depthModelMissing") : "";
 }
+function isProcessedDepthSource(path){
+  const stem = baseName(path).replace(/\.[^.]+$/, "");
+  return /_blur$/i.test(stem);
+}
+function updateDepthSourceWarning(){
+  const show = S.processMode === "depth" && isProcessedDepthSource(S.src);
+  const el = $("depthSourceWarning");
+  el.hidden = !show;
+  if (!show) return;
+  $("depthSourceWarningText").textContent = t("depthSourceWarning");
+  $("depthSourceChoose").textContent = t("chooseOriginal");
+}
 function setModeSwitchDisabled(disabled){
   $("modeBlur").disabled = disabled;
   $("modeDepth").disabled = disabled;
@@ -1588,6 +1955,7 @@ function setProcessMode(mode){
   $("modeDepth").setAttribute("aria-pressed", String(depth));
   ensureModeOutput(S.processMode);
   setViewLabels();
+  updateDepthSourceWarning();
   setMode("compare");
   queuePreview(0);
 }
@@ -1633,33 +2001,51 @@ document.querySelectorAll("#viewMode button").forEach(b =>
 
 /* ── 预览 ─────────────────────────────────────────────── */
 let timer = null;
+let playbackTimer = null;
 function queuePreview(delay){
+  stopPreviewPlayback();
   clearTimeout(timer);
   timer = setTimeout(fetchPreview, delay === undefined ? 170 : delay);
 }
 
+function previewSizeLabel(){
+  return APP_SETTINGS.previewHeight ? APP_SETTINGS.previewHeight + "p" : t("sourceSize");
+}
+function effectivePreviewQuality(mode, currentQuality){
+  return APP_SETTINGS.previewQuality === "follow"
+    ? currentQuality
+    : APP_SETTINGS.previewQuality;
+}
+function previewSampleCount(samples){
+  if (APP_SETTINGS.previewQuality === "turbo") return Math.min(samples, 8);
+  if (APP_SETTINGS.previewQuality === "fast") return Math.min(samples, 16);
+  return samples;
+}
+
 async function fetchPreview(){
-  if (!S.src) return;
-  if (S.running || S.uploading){ return; }
+  if (!S.src) return false;
+  if (S.running || S.uploading) return false;
   if (S.ctrl) S.ctrl.abort();
   S.ctrl = new AbortController();
   const signal = S.ctrl.signal;
   $("spin").classList.add("on");
   const p = params();
+  const previewHeight = APP_SETTINGS.previewHeight;
   const q = new URLSearchParams({
-    src: S.src, t: S.t.toFixed(3), h: "540", mode: S.processMode
+    src: S.src, t: S.t.toFixed(3), h: String(previewHeight), mode: S.processMode,
+    device: APP_SETTINGS.device
   });
   if (S.processMode === "depth"){
-    q.set("quality", $("depthQuality").value);
+    q.set("quality", effectivePreviewQuality("depth", $("depthQuality").value));
     q.set("invert", $("depthInvert").checked ? "1" : "0");
     q.set("temporal", $("depthTemporal").checked ? "1" : "0");
-    q.set("preview", "540");
+    q.set("preview", String(previewHeight));
   }else{
     q.set("angle", p.angle);
-    q.set("samples", p.samples);
+    q.set("samples", previewSampleCount(p.samples));
     q.set("strength", p.strength.toFixed(2));
     q.set("photometric", p.photometric.toFixed(2));
-    q.set("quality", p.quality);
+    q.set("quality", effectivePreviewQuality("blur", p.quality));
     q.set("robust", p.robust ? "1" : "0");
     q.set("bicubic", p.bicubic ? "1" : "0");
   }
@@ -1669,7 +2055,7 @@ async function fetchPreview(){
     if (!rb.ok) throw new Error(await rb.text() || t("previewFailed", {error: ""}));
     const bb = await rb.blob();
 
-    const origKey = S.src + "|" + S.t.toFixed(3) + "|540";
+    const origKey = S.src + "|" + S.t.toFixed(3) + "|" + previewHeight;
     if (S.origKey !== origKey){
       const ra = await fetch("/api/frame?orig=1&" + q, {signal});
       if (!ra.ok) throw new Error(await ra.text() || t("originalPreviewFailed"));
@@ -1687,7 +2073,11 @@ async function fetchPreview(){
     S.frameReady = true;
     setWipe(S.wipe);
     S.lastLatency = performance.now() - t0;
-    $("latency").textContent = t("previewLatency", {ms: Math.round(S.lastLatency)});
+    $("latency").textContent = t("previewLatencySize", {
+      ms: Math.round(S.lastLatency),
+      size: previewSizeLabel()
+    });
+    return true;
   }catch(e){
     if (e.name !== "AbortError"){
       if (String(e.message).indexOf("busy") >= 0){
@@ -1696,9 +2086,75 @@ async function fetchPreview(){
         toast(t("previewFailed", {error: e.message}), true);
       }
     }
+    return false;
   }finally{
     $("spin").classList.remove("on");
   }
+}
+function updatePreviewPlaybackHint(){
+  const hint = $("playHint");
+  if (hint) hint.textContent = t(S.previewPlaying ? "pausePreview" : "playPreview");
+}
+function stopPreviewPlayback(){
+  const wasPlaying = S.previewPlaying;
+  S.previewPlaying = false;
+  S.previewPlaybackToken++;
+  clearTimeout(playbackTimer);
+  if (wasPlaying && S.ctrl) S.ctrl.abort();
+  updatePreviewPlaybackHint();
+}
+function playbackFrameRange(){
+  const fps = S.fps || 30;
+  const startSec = +$("tin").value || 0;
+  const endSec = Math.min(+$("tout").value || S.dur, S.dur);
+  const startFrame = Math.max(0, Math.ceil(startSec * fps - 1e-6));
+  const endFrame = Math.max(startFrame, Math.floor(endSec * fps - 1e-6));
+  return { fps, startFrame, endFrame };
+}
+function startPreviewPlayback(){
+  if (!S.src){ toast(t("openFirst")); return; }
+  if (S.running || S.uploading){
+    toast(t("previewBusy"));
+    return;
+  }
+  stopPreviewPlayback();
+  clearTimeout(timer);
+  const range = playbackFrameRange();
+  let frame = Math.round(S.t * range.fps);
+  if (frame < range.startFrame || frame > range.endFrame) frame = range.startFrame;
+  S.previewFrame = frame;
+  setTime(frame / range.fps, false);
+  const token = ++S.previewPlaybackToken;
+  S.previewPlaying = true;
+  updatePreviewPlaybackHint();
+  playPreviewStep(token);
+}
+function togglePreviewPlayback(){
+  if (S.previewPlaying) stopPreviewPlayback();
+  else startPreviewPlayback();
+}
+async function playPreviewStep(token){
+  if (!S.previewPlaying || token !== S.previewPlaybackToken) return;
+  const started = performance.now();
+  const ok = await fetchPreview();
+  if (!S.previewPlaying || token !== S.previewPlaybackToken) return;
+  if (!ok){
+    stopPreviewPlayback();
+    return;
+  }
+  const range = playbackFrameRange();
+  let next = S.previewFrame + 1;
+  if (next > range.endFrame){
+    if (!APP_SETTINGS.loopPreview){
+      stopPreviewPlayback();
+      return;
+    }
+    next = range.startFrame;
+  }
+  S.previewFrame = next;
+  setTime(next / range.fps, false);
+  const wait = Math.max(0, 1000 / range.fps - (performance.now() - started));
+  playbackTimer = setTimeout(() => playPreviewStep(token), wait);
 }
 
 /* 拖动对比线 */
@@ -1836,6 +2292,9 @@ $("tin").addEventListener("change", () => { drawRange(); queuePreview(); });
 $("tout").addEventListener("change", () => { drawRange(); queuePreview(); });
 $("tin").addEventListener("input", drawRange);
 $("tout").addEventListener("input", drawRange);
+bindSettingsControls();
+applySettingsToControls();
+applySettingsEffects();
 setProcessMode(S.processMode);
 setLanguage(LANG, false);
 $("btnRun").disabled = true;      // 未打开素材前不提供主操作
@@ -2021,6 +2480,7 @@ function loadVideo(path){
   closeModal();
   if (S.running){ toast(t("waitRender")); return; }
   if (S.uploading){ toast(t("waitUpload")); return; }
+  stopPreviewPlayback();
   fetch("/api/info?path=" + encodeURIComponent(path)).then(r => r.json()).then(d => {
     if (!d.ok){
       toast(t("cannotRead", {error: d.error || t("unknownError")}), true);
@@ -2028,6 +2488,7 @@ function loadVideo(path){
     }
     S.src = path; S.dur = d.duration; S.fps = d.fps || 30;
     S.uploading = false;
+    updateDepthSourceWarning();
     S.origKey = "";
     if (S.origUrl){ URL.revokeObjectURL(S.origUrl); S.origUrl = ""; }
     if (S.blurUrl){ URL.revokeObjectURL(S.blurUrl); S.blurUrl = ""; }
@@ -2063,12 +2524,15 @@ function runPrimary(){
 }
 function startRender(){
   if (!S.src){ toast(t("openFirst")); return; }
+  stopPreviewPlayback();
   const p = params();
   const renderMode = S.processMode;
   const outputId = renderMode === "depth" ? "depthDst" : "dst";
   const body = {
     mode: renderMode, src: S.src, dst: $(outputId).value.trim(),
-    trim_start: +$("tin").value || 0, trim_end: +$("tout").value || 0
+    trim_start: +$("tin").value || 0, trim_end: +$("tout").value || 0,
+    device: APP_SETTINGS.device,
+    preserve_outputs: APP_SETTINGS.preserveOutputs
   };
   if (renderMode === "depth"){
     body.quality = $("depthQuality").value;
@@ -2097,6 +2561,8 @@ function startRender(){
   S.completedOutput = "";
   $("reveal").hidden = true;
   S.running = true;
+  S.starting = true;
+  S.cancelPending = false;
   setModeSwitchDisabled(true);
   $("btnRun").textContent = t("cancelRender");
   $("btnRun").classList.remove("solid");
@@ -2106,20 +2572,37 @@ function startRender(){
     method: "POST", headers: {"Content-Type": "application/json"},
     body: JSON.stringify(body)
   }).then(r => r.json()).then(d => {
+    S.starting = false;
     if (!d.ok){
       toast(t("startFailed") + (d.error ? ": " + d.error : ""), true);
       resetRunUI();
     }else{
       $(outputId).value = d.output;
+      if (S.cancelPending) requestCancel();
     }
-  }).catch(e => { toast(t("startFailed") + ": " + e.message, true); resetRunUI(); });
+  }).catch(e => {
+    S.starting = false;
+    toast(t("startFailed") + ": " + e.message, true);
+    resetRunUI();
+  });
 }
 function cancelRender(){
-  fetch("/api/cancel", {method: "POST"});
   setStatus("cancelling");
+  if (S.starting){
+    S.cancelPending = true;
+    return;
+  }
+  requestCancel();
+}
+function requestCancel(){
+  fetch("/api/cancel", {method: "POST"}).catch(e => {
+    toast(t("renderFailed", {error: e.message}), true);
+  });
 }
 function resetRunUI(){
   S.running = false;
+  S.starting = false;
+  S.cancelPending = false;
   setModeSwitchDisabled(false);
   $("btnRun").textContent = t("startRender");
   $("btnRun").classList.add("solid");
@@ -2174,6 +2657,8 @@ function connect(){
       setEta("fpsEta", {fps: p.fps.toFixed(2), time: fmtShort(p.eta)});
       if (!S.running){
         S.running = true;
+        S.starting = false;
+        S.cancelPending = false;
         setModeSwitchDisabled(true);
         $("btnRun").textContent = t("cancelRender");
         $("btnRun").classList.remove("solid");
@@ -2206,6 +2691,7 @@ function connect(){
         setEta("fpsSize", {fps: d.result.fps.toFixed(2), size: d.result.size});
         showBreakdown(d.result.profile);
         toast(t("renderComplete"));
+        if (APP_SETTINGS.autoOpenOutput) reveal();
       }
     }
   };
@@ -2217,14 +2703,23 @@ connect();
 document.addEventListener("keydown", e => {
   const tag = e.target.tagName;
   const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "BUTTON";
-  if (e.key === "Escape"){ closeModal(); toggleRail(false); return; }
+  if (e.key === "Escape"){
+    if ($("settingsModal").classList.contains("on")){
+      closeSettings();
+    }else{
+      closeModal();
+      toggleRail(false);
+    }
+    return;
+  }
+  if ($("settingsModal").classList.contains("on")) return;
   if (typing) return;
   if (e.key === "ArrowLeft"){ e.preventDefault(); step(e.shiftKey ? -5 : -1); }
   else if (e.key === "ArrowRight"){ e.preventDefault(); step(e.shiftKey ? 5 : 1); }
   else if (e.key === "["){ preset(Math.max(0, +$("angle").value - 30)); }
   else if (e.key === "]"){ preset(Math.min(360, +$("angle").value + 30)); }
   else if (e.key === "c"){ cycleMode(); }
-  else if (e.key === " "){ e.preventDefault(); runPrimary(); }
+  else if (e.key === " "){ e.preventDefault(); togglePreviewPlayback(); }
 });
 function cycleMode(){
   const order = ["compare", "orig", "blur"];

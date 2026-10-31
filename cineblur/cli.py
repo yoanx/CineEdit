@@ -14,7 +14,7 @@ import sys
 import time
 
 from .config import BlurConfig
-from .media import find_exe, probe
+from .media import find_exe, probe, unique_output_path
 from .pipeline import MotionBlurRenderer
 
 
@@ -118,7 +118,9 @@ def main(argv: list[str] | None = None) -> int:
         cfg.occlusion = max(cfg.occlusion, 0.4)
         cfg.photometric = max(cfg.photometric, 0.4)
 
-    out = args.output or _default_output(args.input, args.preview or args.fast)
+    out = unique_output_path(
+        args.output or _default_output(args.input, args.preview or args.fast)
+    )
 
     renderer = MotionBlurRenderer(cfg)
     t0 = time.time()

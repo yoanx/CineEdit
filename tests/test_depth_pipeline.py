@@ -127,6 +127,68 @@ class ObservedQueue(RealQueue):
 
 
 class DepthPipelineTests(unittest.TestCase):
+    def test_depth_cancel_skips_engine_initialization(self):
+        renderer = DepthRenderer(
+            DepthConfig(
+                quality="fast",
+                output_height=64,
+                device="cpu",
+                codec="libx264",
+            )
+        )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(renderer, "_ensure_engine") as ensure_engine:
+                stats = renderer.render(
+                    DEMO,
+                    os.path.join(tmp, "cancelled-depth.mp4"),
+                    cancel=lambda: True,
+                )
+
+        self.assertTrue(stats["cancelled"])
+        self.assertEqual(stats["frames"], 0)
+        ensure_engine.assert_not_called()
+
+    def test_renderer_warns_when_source_is_already_blurred(self):
+        info = VideoInfo(
+            path="source_blur.mp4",
+            width=64,
+            height=64,
+            fps=Fraction(30, 1),
+            nb_frames=10,
+            duration=10 / 30,
+            has_audio=False,
+        )
+        cfg = DepthConfig(
+            quality="fast",
+            output_height=64,
+            device="cpu",
+            codec="libx264",
+            temporal_stability=False,
+        )
+        logs = []
+        engine = ConstantEngine()
+        renderer = DepthRenderer(cfg, engine=engine)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, "clip_blur.mp4")
+            with open(source, "wb"):
+                pass
+            with (
+                patch("cineblur.depth_pipeline.probe", return_value=info),
+                patch("cineblur.depth_pipeline.Decoder", FiniteDecoder),
+                patch("cineblur.depth_pipeline.Encoder", RecordingEncoder),
+            ):
+                renderer.render(
+                    source,
+                    os.path.join(tmp, "depth.mp4"),
+                    log=logs.append,
+                )
+
+        self.assertTrue(
+            any("already motion-blurred" in message for message in logs)
+        )
+
     def test_temporal_stability_reduces_static_depth_flicker(self):
         info = VideoInfo(
             path="source.mp4",

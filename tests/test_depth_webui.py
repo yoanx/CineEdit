@@ -207,6 +207,88 @@ class DepthWebUITests(unittest.TestCase):
             {"progress", "cancel", "log"},
         )
 
+    def test_start_job_preserves_existing_output_file(self):
+        webui.JOB.update(
+            running=False,
+            log=[],
+            result=None,
+            error=None,
+            output="",
+            progress={"done": 0, "total": 0, "fps": 0.0, "eta": 0.0},
+        )
+        renderer = MagicMock()
+        renderer.render.return_value = {"frames": 1, "output": "ignored"}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, "clip.mp4")
+            existing = os.path.join(tmp, "clip_blur.mp4")
+            expected = os.path.join(tmp, "clip_blur_2.mp4")
+            for path in (source, existing):
+                with open(path, "wb"):
+                    pass
+
+            with (
+                patch.object(webui.threading, "Thread", ImmediateThread),
+                patch.object(
+                    webui,
+                    "MotionBlurRenderer",
+                    return_value=renderer,
+                ),
+            ):
+                result = webui.start_job(
+                    {
+                        "mode": "blur",
+                        "src": source,
+                        "dst": existing,
+                        "quality": "turbo",
+                    }
+                )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["output"], expected)
+        self.assertEqual(renderer.render.call_args.args, (source, expected))
+
+    def test_start_job_can_overwrite_when_preserve_is_disabled(self):
+        webui.JOB.update(
+            running=False,
+            log=[],
+            result=None,
+            error=None,
+            output="",
+            progress={"done": 0, "total": 0, "fps": 0.0, "eta": 0.0},
+        )
+        renderer = MagicMock()
+        renderer.render.return_value = {"frames": 1, "output": "ignored"}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, "clip.mp4")
+            existing = os.path.join(tmp, "clip_blur.mp4")
+            for path in (source, existing):
+                with open(path, "wb"):
+                    pass
+
+            with (
+                patch.object(webui.threading, "Thread", ImmediateThread),
+                patch.object(
+                    webui,
+                    "MotionBlurRenderer",
+                    return_value=renderer,
+                ),
+            ):
+                result = webui.start_job(
+                    {
+                        "mode": "blur",
+                        "src": source,
+                        "dst": existing,
+                        "quality": "turbo",
+                        "preserve_outputs": False,
+                    }
+                )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["output"], existing)
+        self.assertEqual(renderer.render.call_args.args, (source, existing))
+
     def test_depth_job_closes_renderer_when_render_raises(self):
         webui.JOB.update(
             running=False,

@@ -1,7 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 from PyInstaller.utils.hooks import collect_all
 
-datas = [('assets', 'assets'), ('cineblur/ui.html', 'cineblur')]
+datas = [
+    ('assets', 'assets'),
+    ('assets/weights/depth_anything_v2_small',
+     'assets/weights/depth_anything_v2_small'),
+    ('cineblur/ui.html', 'cineblur'),
+]
 binaries = []
 hiddenimports = ['clr', 'webview.platforms.winforms', 'webview.platforms.edgechromium']
 tmp_ret = collect_all('webview')
@@ -9,6 +14,8 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('pythonnet')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('clr_loader')
+datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+tmp_ret = collect_all('transformers')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 
 

@@ -17,6 +17,7 @@ CineBlur 不是把画面沿固定方向拉长，而是在虚拟快门区间内�
 - 稳健模式：可选双向光流、前后向一致性和光度一致性权重。
 - 交互预览：拖动时间轴即可查看当前帧，支持原片、模糊和对比三种视图。
 - 双工作模式：左侧模式栏可在运动模糊与深度图之间切换，并分别保留两套参数和输出路径。
+- 单目深度图：使用本地 Depth Anything V2 Small 模型，支持三档推理精度和离线处理。
 - 常用输出选项：保留输入帧率和音轨，可选择 H.264/H.265、NVENC 和 CRF。
 - 多种入口：桌面窗口、本地 Web UI、命令行和打包后的 Windows 程序。
 - 中英双语界面：桌面版支持 Windows 文件选择器和键盘快捷键。
@@ -57,10 +58,13 @@ position in prev = x - (1 + tau) * F
 - 推荐 NVIDIA CUDA GPU；CPU 也可运行，但完整视频渲染会明显更慢。
 - `ffmpeg.exe` 和 `ffprobe.exe` 必须位于 `PATH`、项目 `assets/ffmpeg/` 或程序
   旁边的对应目录。
+- 深度图模式需要 `transformers==4.57.1`，并从项目内的
+  `assets/weights/depth_anything_v2_small/` 加载 Depth Anything V2 Small。
 - 桌面窗口优先使用 WebView2；缺失时程序会尝试回退到 Edge 应用模式或浏览器。
 
 源码仓库不包含 `.venv`、`dist`、安装包、FFmpeg 二进制、RAFT 权重和测试视频。
-首次运行时 torchvision 通常会下载所需的 RAFT 权重。
+首次运行时 torchvision 通常会下载所需的 RAFT 权重。Depth Anything V2 Small 权重也不会
+从仓库自动下载，使用深度图模式前需要按下方说明准备本地模型目录。
 
 ## 安装
 
@@ -83,6 +87,20 @@ python -m pip install -r requirements.txt
 `requirements.txt` 使用 PyTorch CUDA 12.8 索引，适合支持 CUDA 12.8 的 NVIDIA
 显卡和驱动。其他环境请根据 PyTorch 官方安装说明调整 `torch` 和 `torchvision`
 版本。
+
+### 安装深度模型
+
+把 Depth Anything V2 Small 的 Transformers 格式文件放到：
+
+```text
+assets/weights/depth_anything_v2_small/
+  config.json
+  model.safetensors
+  preprocessor_config.json
+```
+
+程序只从该目录加载模型，并使用 `local_files_only=True` 禁止预览或渲染时访问
+Hugging Face。缺少模型文件时深度图模式会直接报错，不会自动下载。
 
 ### 安装 FFmpeg
 
@@ -176,6 +194,18 @@ python -m pip install -r requirements.txt
 性能分析脚本位于 [`tools/tradeoff.py`](tools/tradeoff.py)，质量评估脚本位于
 [`tools/evaluate.py`](tools/evaluate.py)。
 
+深度图模式的本地实测使用 Depth Anything V2 Small、Turbo 档位（336 输入边长）和
+RTX 5060 Laptop GPU，测试视频为 1080p、30 fps、90 帧：
+
+| 项目 | 实测结果 |
+| --- | ---: |
+| 模型加载 | 0.617 s |
+| 540p 热预览（不含解码和模型加载） | 57.63 ms/帧 |
+| 720p 完整渲染（含解码和编码） | 17.76 fps |
+| 1080p 完整渲染（含解码和编码） | 11.07 fps |
+
+完整渲染使用 90 帧测试片段；实际速度会随素材、编码器、驱动和显存状态变化。
+
 ## 已知限制
 
 1. 被运动物体遮挡的背景无法完整回填。默认的 gather 采样无法凭空获得遮挡区域
@@ -223,11 +253,14 @@ cineblur/
 
 ```powershell
 python -m pip install pyinstaller
-python -m PyInstaller CineBlur.spec --noconfirm
+python -m PyInstaller CineBlur.spec --noconfirm --clean
 ```
 
 生成结果位于 `dist/CineBlur/`。安装包生成脚本位于 `installer/`，构建产物不应提交
-到 Git 仓库。GitHub Release 可以附加安装包，但单个 Release 文件必须小于 2 GiB。
+到 Git 仓库。打包前必须准备好 `assets/weights/depth_anything_v2_small/`；
+`CineBlur.spec` 会把模型目录和 `transformers` 的数据、二进制及隐藏导入一起收进
+程序目录，因此构建产物体积会明显增加。GitHub Release 可以附加安装包，但单个
+Release 文件必须小于 2 GiB。
 
 随包 FFmpeg 的 GPLv3 义务见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
 

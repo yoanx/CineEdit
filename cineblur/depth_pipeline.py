@@ -11,7 +11,7 @@ import numpy as np
 import torch
 
 from .config import DepthConfig
-from .depth_engine import DepthEngine
+from .depth_engine import DepthEngine, get_depth_engine
 from .depth_ops import depth_range, normalize_depth, smooth_range
 from .media import Decoder, Encoder, VideoInfo, probe
 
@@ -75,7 +75,8 @@ class DepthRenderer:
 
     def _ensure_engine(self):
         if self.engine is None:
-            self.engine = DepthEngine(device=self.cfg.device)
+            # The accessor owns the resident model; renderers only borrow it.
+            self.engine = get_depth_engine(self.cfg.device)
         return self.engine
 
     @torch.inference_mode()
@@ -199,7 +200,11 @@ class DepthRenderer:
                     break
 
                 frame_tensor = _to_tensor(frame, engine.device)
-                depth = engine.estimate(frame_tensor, cfg.input_size())
+                depth = engine.estimate(
+                    frame_tensor,
+                    cfg.input_size(),
+                    log=log,
+                )
                 current_range = depth_range(depth)
                 current_range = smooth_range(previous_range, current_range)
                 previous_range = current_range
@@ -290,6 +295,4 @@ class DepthRenderer:
         return stats
 
     def close(self) -> None:
-        if self.engine is not None:
-            self.engine.release()
-            self.engine = None
+        self.engine = None

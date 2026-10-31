@@ -194,17 +194,19 @@ Hugging Face。缺少模型文件时深度图模式会直接报错，不会自�
 性能分析脚本位于 [`tools/tradeoff.py`](tools/tradeoff.py)，质量评估脚本位于
 [`tools/evaluate.py`](tools/evaluate.py)。
 
-深度图模式的本地实测使用 Depth Anything V2 Small、Turbo 档位（336 输入边长）和
-RTX 5060 Laptop GPU，测试视频为 1080p、30 fps、90 帧：
+深度图模式的本地实测使用 Depth Anything V2 Small、默认 Fast 档位（392 输入边长）
+和 RTX 5060 Laptop GPU，测试视频为 1080p、30 fps、90 帧：
 
 | 项目 | 实测结果 |
 | --- | ---: |
-| 模型加载 | 0.617 s |
-| 540p 热预览（不含解码和模型加载） | 57.63 ms/帧 |
-| 720p 完整渲染（含解码和编码） | 17.76 fps |
-| 1080p 完整渲染（含解码和编码） | 11.07 fps |
+| 模型加载 | 0.532 s |
+| 720p 完整渲染（含解码和编码） | 15.08 fps |
+| 1080p 完整渲染（含解码和编码） | 10.33 fps |
 
 完整渲染使用 90 帧测试片段；实际速度会随素材、编码器、驱动和显存状态变化。
+此前 Turbo/336 实测为 720p 17.76 fps、1080p 11.07 fps。Fast 较慢但没有硬失败，
+因此继续作为已批准默认档位。完整环境和测量方法见
+[`docs/depth-benchmark.md`](docs/depth-benchmark.md)。
 
 ## 已知限制
 
@@ -247,6 +249,10 @@ cineblur/
 测试不需要完整视频渲染，主要覆盖参数映射、预览解码、文件选择、错误连接处理和
 零快门快速路径。
 
+离线模型验证使用 `HF_HUB_OFFLINE=1`、`TRANSFORMERS_OFFLINE=1` 和
+`local_files_only=True`，证明模型来自 Hugging Face 本地缓存或项目模型目录；
+这不是操作系统级断网隔离。完整安装包仍需在目标机器上做一次实际断网验收。
+
 ## 打包
 
 项目使用 PyInstaller 生成 Windows 目录版程序：
@@ -259,8 +265,9 @@ python -m PyInstaller CineBlur.spec --noconfirm --clean
 生成结果位于 `dist/CineBlur/`。安装包生成脚本位于 `installer/`，构建产物不应提交
 到 Git 仓库。打包前必须准备好 `assets/weights/depth_anything_v2_small/`；
 `CineBlur.spec` 会把模型目录和 `transformers` 的数据、二进制及隐藏导入一起收进
-程序目录，因此构建产物体积会明显增加。GitHub Release 可以附加安装包，但单个
-Release 文件必须小于 2 GiB。
+程序目录。当前 onedir 实测约 4.70 GiB；GitHub Release 单个文件必须小于 2 GiB，
+因此不能把整个 onedir 目录或未拆分压缩包作为一个 Release asset 直接上传。发布前
+必须拆分压缩包或改用外部托管，并记录分片校验值；这是发布门禁。
 
 随包 FFmpeg 的 GPLv3 义务见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
 

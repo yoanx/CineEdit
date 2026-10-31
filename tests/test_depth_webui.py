@@ -11,6 +11,7 @@ import torch
 import cineblur.preview as preview
 import cineblur.webui as webui
 from cineblur.config import DepthConfig
+from cineblur.depth_engine import release_depth_engine
 
 
 class FakeDepthEngine:
@@ -56,7 +57,7 @@ class TrackingLock:
 
 class DepthWebUITests(unittest.TestCase):
     def tearDown(self):
-        preview._DEPTH_ENGINE = None
+        release_depth_engine()
         preview._DEPTH_FRAME_CACHE.clear()
         preview._DEPTH_OUTPUT_CACHE.clear()
         webui.JOB.update(
@@ -103,10 +104,10 @@ class DepthWebUITests(unittest.TestCase):
             render_depth_preview,
             "render_depth_preview is missing",
         )
-        preview._DEPTH_ENGINE = None
         preview._DEPTH_FRAME_CACHE.clear()
         preview._DEPTH_OUTPUT_CACHE.clear()
         FakeDepthEngine.instances.clear()
+        engine = FakeDepthEngine()
         frame = np.array(
             [[[[0, 64, 128], [255, 192, 128]], [[10, 20, 30], [40, 50, 60]]]],
             dtype=np.uint8,
@@ -114,7 +115,10 @@ class DepthWebUITests(unittest.TestCase):
 
         with tempfile.NamedTemporaryFile(suffix=".mp4") as source:
             with (
-                patch("cineblur.preview.DepthEngine", FakeDepthEngine),
+                patch(
+                    "cineblur.preview.get_depth_engine",
+                    return_value=engine,
+                ) as accessor,
                 patch("cineblur.preview._size_of", return_value=(2, 2)),
                 patch("cineblur.preview._fps_of", return_value=10.0),
                 patch(
@@ -143,6 +147,8 @@ class DepthWebUITests(unittest.TestCase):
 
         self.assertEqual(extract.call_count, 1)
         self.assertEqual(len(FakeDepthEngine.instances), 1)
+        self.assertEqual(accessor.call_count, 2)
+        accessor.assert_called_with("cpu")
         self.assertEqual(FakeDepthEngine.instances[0].calls, [336, 336])
         self.assertEqual(normal.shape, (2, 2, 3))
         np.testing.assert_array_equal(normal, cached)
@@ -200,6 +206,55 @@ class DepthWebUITests(unittest.TestCase):
             set(renderer.render.call_args.kwargs),
             {"progress", "cancel", "log"},
         )
+
+    def test_depth_job_closes_renderer_when_render_raises(self):
+        webui.JOB.update(
+            running=False,
+            log=[],
+            result=None,
+            error=None,
+            output="",
+            progress={"done": 0, "total": 0, "fps": 0.0, "eta": 0.0},
+        )
+        renderer = MagicMock()
+        renderer.render.side_effect = RuntimeError("render exploded")
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4") as source:
+            with (
+                patch.object(webui.threading, "Thread", ImmediateThread),
+                patch.object(
+                    webui,
+                    "DepthRenderer",
+                    return_value=renderer,
+                ),
+            ):
+                result = webui.start_job(
+                    {
+                        "mode": "depth",
+                        "src": source.name,
+                        "quality": "fast",
+                    }
+                )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(webui.JOB["error"], "render exploded")
+        renderer.close.assert_called_once_with()
+        self.assertFalse(webui.JOB["running"])
+
+    def test_env_reports_depth_model_availability(self):
+        with patch.object(
+            webui,
+            "depth_model_available",
+            return_value=True,
+        ):
+            self.assertTrue(webui.env_info()["depth_model"])
+
+        with patch.object(
+            webui,
+            "depth_model_available",
+            return_value=False,
+        ):
+            self.assertFalse(webui.env_info()["depth_model"])
 
     def test_depth_frame_routes_through_depth_preview_under_preview_lock(self):
         webui.JOB["running"] = False

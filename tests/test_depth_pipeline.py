@@ -4,15 +4,17 @@ import os
 import subprocess
 import tempfile
 import unittest
+from fractions import Fraction
 from queue import Queue as RealQueue
 from unittest.mock import patch
 
+import numpy as np
 import torch
 
 import cineblur.depth_pipeline as depth_pipeline
 from cineblur.config import DepthConfig
 from cineblur.depth_pipeline import DepthRenderer
-from cineblur.media import Decoder, find_exe, probe
+from cineblur.media import Decoder, VideoInfo, find_exe, probe
 
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -26,7 +28,7 @@ class ConstantEngine:
         self.calls = []
         self.released = False
 
-    def estimate(self, frame, input_size):
+    def estimate(self, frame, input_size, log=None):
         self.calls.append(input_size)
         pixels = frame.shape[-2] * frame.shape[-1]
         return torch.linspace(
@@ -73,6 +75,24 @@ class RecordingEncoder:
         return True, ""
 
 
+class FiniteDecoder:
+    instances = []
+
+    def __init__(self, *args, **kwargs):
+        self.remaining = 10
+        self.closed = False
+        self.__class__.instances.append(self)
+
+    def read(self):
+        if self.remaining <= 0:
+            return None
+        self.remaining -= 1
+        return np.zeros((64, 64, 3), dtype=np.uint8)
+
+    def close(self):
+        self.closed = True
+
+
 class ObservedQueue(RealQueue):
     def __init__(self, maxsize, stop_events):
         super().__init__(maxsize)
@@ -86,6 +106,20 @@ class ObservedQueue(RealQueue):
 
 
 class DepthPipelineTests(unittest.TestCase):
+    def test_renderer_uses_shared_engine_without_releasing_it(self):
+        engine = ConstantEngine()
+        renderer = DepthRenderer(DepthConfig(device="cpu"))
+
+        with patch(
+            "cineblur.depth_pipeline.get_depth_engine",
+            return_value=engine,
+        ) as accessor:
+            self.assertIs(renderer._ensure_engine(), engine)
+
+        accessor.assert_called_once_with("cpu")
+        renderer.close()
+        self.assertFalse(engine.released)
+
     def test_renderer_preserves_video_timing_and_writes_grayscale_without_audio(self):
         ffmpeg = find_exe("ffmpeg")
         if not ffmpeg:
@@ -145,7 +179,7 @@ class DepthPipelineTests(unittest.TestCase):
             finally:
                 renderer.close()
 
-            self.assertTrue(engine.released)
+            self.assertFalse(engine.released)
             self.assertEqual(engine.calls, [392] * 6)
             self.assertEqual(
                 set(stats),
@@ -269,6 +303,54 @@ class DepthPipelineTests(unittest.TestCase):
         self.assertEqual(encoder.frames_written, 6)
         self.assertTrue(encoder.closed)
         self.assertEqual(queues[1].sentinel_stop_states, [False])
+
+    def test_cancel_stops_after_current_frame_and_closes_processes(self):
+        cfg = DepthConfig(
+            quality="fast",
+            output_height=64,
+            device="cpu",
+            codec="libx264",
+        )
+        info = VideoInfo(
+            path="source.mp4",
+            width=64,
+            height=64,
+            fps=Fraction(30, 1),
+            nb_frames=10,
+            duration=10 / 30,
+            has_audio=False,
+        )
+        FiniteDecoder.instances.clear()
+        RecordingEncoder.instances.clear()
+        engine = ConstantEngine()
+        renderer = DepthRenderer(cfg, engine=engine)
+        progress = []
+        logs = []
+
+        with tempfile.NamedTemporaryFile(suffix=".mp4") as source:
+            with tempfile.TemporaryDirectory() as tmp:
+                dst = os.path.join(tmp, "cancelled-depth.mp4")
+                with (
+                    patch("cineblur.depth_pipeline.probe", return_value=info),
+                    patch("cineblur.depth_pipeline.Decoder", FiniteDecoder),
+                    patch("cineblur.depth_pipeline.Encoder", RecordingEncoder),
+                ):
+                    stats = renderer.render(
+                        source.name,
+                        dst,
+                        progress=progress.append,
+                        cancel=lambda: len(progress) >= 2,
+                        log=logs.append,
+                    )
+
+        decoder = FiniteDecoder.instances[0]
+        encoder = RecordingEncoder.instances[0]
+        self.assertTrue(stats["cancelled"])
+        self.assertEqual(stats["frames"], 2)
+        self.assertTrue(decoder.closed)
+        self.assertTrue(encoder.closed)
+        self.assertEqual(encoder.frames_written, 2)
+        self.assertEqual(logs[-1], "Cancelled")
 
 
 if __name__ == "__main__":

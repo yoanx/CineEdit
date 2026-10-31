@@ -26,6 +26,7 @@ from .config import BlurConfig, DepthConfig
 from .depth_pipeline import DepthRenderer
 from .media import find_exe, probe
 from .pipeline import MotionBlurRenderer
+from .weights import depth_model_available
 
 VIDEO_EXT = {".mp4", ".mov", ".mkv", ".avi", ".m4v", ".webm", ".mpg", ".mpeg", ".wmv"}
 
@@ -161,7 +162,7 @@ def default_output(src: str, mode: str) -> str:
 
 def env_info() -> dict:
     info = {"ffmpeg": find_exe("ffmpeg"), "gpu": None, "torch": None, "cuda": False,
-            "webview": False}
+            "webview": False, "depth_model": depth_model_available()}
     try:
         import torch
         info["torch"] = torch.__version__
@@ -226,11 +227,11 @@ def start_job(payload: dict) -> dict:
         _CANCEL.clear()
 
     def work():
+        r = None
         try:
             r = DepthRenderer(cfg) if mode == "depth" else MotionBlurRenderer(cfg)
             stats = r.render(src, dst, progress=_set_progress,
                              cancel=_CANCEL.is_set, log=_log)
-            r.close()
             with _LOCK:
                 JOB["result"] = stats
         except Exception as exc:  # noqa: BLE001
@@ -238,6 +239,14 @@ def start_job(payload: dict) -> dict:
                 JOB["error"] = str(exc)
                 JOB["log"].append("错误：" + str(exc))
         finally:
+            if r is not None:
+                try:
+                    r.close()
+                except Exception as exc:  # noqa: BLE001
+                    with _LOCK:
+                        if not JOB["error"]:
+                            JOB["error"] = str(exc)
+                        JOB["log"].append("清理错误：" + str(exc))
             with _LOCK:
                 JOB["running"] = False
 

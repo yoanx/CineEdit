@@ -22,7 +22,7 @@ import torch
 
 from .blur import render_frame
 from .config import BlurConfig, DepthConfig
-from .depth_engine import DepthEngine
+from .depth_engine import get_depth_engine
 from .depth_ops import depth_range, normalize_depth
 from .flow import FlowEngine
 from .imageops import srgb_to_linear
@@ -32,8 +32,6 @@ _ENGINE: FlowEngine | None = None
 _LOCK = threading.Lock()
 _STATE: dict = {"key": None}
 _ORIGINAL_STATE: dict = {"key": None}
-_DEPTH_ENGINE: DepthEngine | None = None
-_DEPTH_LOCK = threading.Lock()
 _DEPTH_FRAME_CACHE: dict[tuple, np.ndarray] = {}
 _DEPTH_OUTPUT_CACHE: dict[tuple, np.ndarray] = {}
 
@@ -114,15 +112,8 @@ def _cache_put(cache: dict[tuple, np.ndarray], key: tuple, value: np.ndarray) ->
     cache[key] = value
 
 
-def _depth_engine(cfg: DepthConfig) -> DepthEngine:
-    global _DEPTH_ENGINE
-    with _DEPTH_LOCK:
-        want = _dev(cfg)
-        if _DEPTH_ENGINE is None or _DEPTH_ENGINE.device != want:
-            if _DEPTH_ENGINE is not None:
-                _DEPTH_ENGINE.release()
-            _DEPTH_ENGINE = DepthEngine(device=want.type)
-        return _DEPTH_ENGINE
+def _depth_engine(cfg: DepthConfig):
+    return get_depth_engine(cfg.device)
 
 
 def _depth_frame(src: str, idx: int, w: int, h: int) -> np.ndarray:

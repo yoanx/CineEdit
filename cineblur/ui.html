@@ -116,15 +116,23 @@ button{cursor:pointer}
   width:100%;min-height:64px;padding:9px 4px;border:1px solid transparent;
   border-radius:var(--r-sm);background:transparent;color:var(--ink-3);
   display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
-  font-size:11px;line-height:1.2;white-space:nowrap;
+  font-size:11px;line-height:1.2;text-align:center;white-space:normal;
   transition:background .18s var(--ease),border-color .18s var(--ease),color .18s var(--ease);
 }
 .mode-btn:hover{background:#1d1d20;border-color:var(--rule);color:var(--ink)}
+.mode-btn:disabled{opacity:.45;cursor:default}
 .mode-btn.on{
   background:#232326;border-color:var(--rule-2);color:var(--ink);font-weight:600;
   box-shadow:inset 2px 0 0 var(--accent);
 }
 .mode-btn .icon{width:20px;height:20px}
+.mode-btn span{max-width:100%;overflow-wrap:anywhere}
+
+.model-state{
+  margin:8px 0 2px;padding:8px 10px;border:1px solid rgba(170,65,45,.35);
+  border-radius:var(--r-sm);background:rgba(170,65,45,.07);
+  color:var(--err);font-size:11.5px;line-height:1.45;
+}
 
 /* 舞台 */
 .stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--stage)}
@@ -1099,9 +1107,10 @@ select.inline{font-size:13px}
               </div>
             </div>
             <label class="switch">
-              <div><span>反转深度</span><small>近处为白，远处为黑</small></div>
+              <div><span>反转深度</span><small id="depthInvertHint">近处为白，远处为黑</small></div>
               <input type="checkbox" id="depthInvert"><i></i>
             </label>
+            <div class="model-state" id="depthModelState" hidden></div>
           </div>
         </div>
 
@@ -1167,6 +1176,7 @@ const S = {
   frameReady: false, lastLatency: 0, previewPending: false,
   origKey: "", origUrl: "", blurUrl: "",
   uploading: false, cuda: false, gpuName: "",
+  depthModelAvailable: null, completedOutput: "",
   statusKey: "ready", statusVars: {}, etaKey: "", etaVars: {},
   breakdownParts: null
 };
@@ -1194,6 +1204,8 @@ const STATIC_EN = {
   "近处为白，远处为黑": "Near is white, far is black",
   "深度输出路径": "Depth output path",
   "自动生成 _depth.mp4": "Auto: _depth.mp4",
+  "未找到本地深度模型，请安装到 assets/weights/depth_anything_v2_small/":
+    "Local depth model not found. Install it under assets/weights/depth_anything_v2_small/",
   "打开一段视频开始": "Open a video to begin",
   "快门区间内取子帧采样，按光流重建每个时刻的画面，在线性光空间积分。 旋转、加速、遮挡与相机运动都按真实曝光处理。":
     "Samples subframes within the shutter interval, reconstructs each moment with optical flow, and integrates in linear light. Rotation, acceleration, occlusion, and camera motion follow real exposure.",
@@ -1310,6 +1322,10 @@ const I18N = {
     uploadingProgress: "正在上传 {pct}%",
     uploadFailed: "上传失败：{error}",
     waitUpload: "请等待上传完成",
+    outputMissing: "没有可打开的输出文件",
+    invertHintNormal: "近处为白，远处为黑",
+    invertHintInverted: "近处为黑，远处为白",
+    depthModelMissing: "未找到本地深度模型，请安装到 assets/weights/depth_anything_v2_small/",
     parentDir: "上级目录",
     selectDisk: "选择磁盘",
     breakdown: "分段 ms/帧 · 光流 {flow} · 积分 {render} · 解码 {dec} · 编码 {enc}"
@@ -1365,6 +1381,10 @@ const I18N = {
     uploadingProgress: "Uploading {pct}%",
     uploadFailed: "Upload failed: {error}",
     waitUpload: "Wait for the upload to finish",
+    outputMissing: "No completed output is available",
+    invertHintNormal: "Near is white, far is black",
+    invertHintInverted: "Near is black, far is white",
+    depthModelMissing: "Local depth model not found. Install it under assets/weights/depth_anything_v2_small/",
     parentDir: "Parent folder",
     selectDisk: "Choose drive",
     breakdown: "ms/frame · flow {flow} · integrate {render} · decode {dec} · encode {enc}"
@@ -1374,7 +1394,7 @@ const I18N = {
 let LANG = "zh";
 const TEXT_ORIGINALS = new WeakMap();
 const ATTR_ORIGINALS = new WeakMap();
-const STATIC_SKIP = "#fileChipName,#fileMeta,#gpuText,#angleV,#angleMs,#angleHint,#samplesV,#strengthV,#photoV,#costHint,#rangeMs,#latency,#status,#eta,#breakdown,#log,#mpath,#dst,#depthDst,#tcur,#tdur,#recentList,.sheet-ls,#viewCompare,#viewOriginal,#viewResult,#resultBadge";
+const STATIC_SKIP = "#fileChipName,#fileMeta,#gpuText,#angleV,#angleMs,#angleHint,#samplesV,#strengthV,#photoV,#costHint,#rangeMs,#latency,#status,#eta,#breakdown,#log,#mpath,#dst,#depthDst,#depthInvertHint,#depthModelState,#tcur,#tdur,#recentList,.sheet-ls,#viewCompare,#viewOriginal,#viewResult,#resultBadge";
 
 function t(key, vars = {}){
   const template = (I18N[LANG] && I18N[LANG][key]) || (I18N.zh[key] || key);
@@ -1431,6 +1451,8 @@ function refreshDynamicLanguage(){
   $("btnRun").textContent = S.running ? t("cancelRender") : t("startRender");
   $("status").textContent = t(S.statusKey, S.statusVars);
   $("eta").textContent = S.etaKey ? t(S.etaKey, S.etaVars) : "";
+  updateDepthInvertHint();
+  updateDepthModelState();
   syncAngle();
   costHint();
   drawRange();
@@ -1518,6 +1540,21 @@ function ensureModeOutput(mode){
 function openOutputPicker(){
   openPicker(currentOutputId());
 }
+function updateDepthInvertHint(){
+  $("depthInvertHint").textContent = t(
+    $("depthInvert").checked ? "invertHintInverted" : "invertHintNormal"
+  );
+}
+function updateDepthModelState(){
+  const missing = S.depthModelAvailable === false;
+  const el = $("depthModelState");
+  el.hidden = !missing;
+  el.textContent = missing ? t("depthModelMissing") : "";
+}
+function setModeSwitchDisabled(disabled){
+  $("modeBlur").disabled = disabled;
+  $("modeDepth").disabled = disabled;
+}
 function setViewLabels(){
   const depth = S.processMode === "depth";
   $("viewCompare").textContent = t("compare");
@@ -1528,6 +1565,10 @@ function setViewLabels(){
   $("imgB").alt = depth ? t("depthFrame") : t("blurredFrame");
 }
 function setProcessMode(mode){
+  if (S.running){
+    toast(t("waitRender"));
+    return;
+  }
   S.processMode = mode === "depth" ? "depth" : "blur";
   try { localStorage.setItem(PROCESS_STORAGE, S.processMode); } catch(e){}
   const depth = S.processMode === "depth";
@@ -1780,7 +1821,10 @@ $("quality").addEventListener("change", () => { costHint(); queuePreview(); });
 $("robust").addEventListener("change", () => queuePreview());
 $("bicubic").addEventListener("change", () => queuePreview());
 $("depthQuality").addEventListener("change", () => queuePreview());
-$("depthInvert").addEventListener("change", () => queuePreview());
+$("depthInvert").addEventListener("change", () => {
+  updateDepthInvertHint();
+  queuePreview();
+});
 $("tin").addEventListener("change", () => { drawRange(); queuePreview(); });
 $("tout").addEventListener("change", () => { drawRange(); queuePreview(); });
 $("tin").addEventListener("input", drawRange);
@@ -2042,7 +2086,10 @@ function startRender(){
   $("logs").open = false;
   $("bar").style.width = "0%";
   $("tprog").style.width = "0%";
+  S.completedOutput = "";
+  $("reveal").hidden = true;
   S.running = true;
+  setModeSwitchDisabled(true);
   $("btnRun").textContent = t("cancelRender");
   $("btnRun").classList.remove("solid");
   $("btnRun").classList.add("ghost");
@@ -2065,14 +2112,19 @@ function cancelRender(){
 }
 function resetRunUI(){
   S.running = false;
+  setModeSwitchDisabled(false);
   $("btnRun").textContent = t("startRender");
   $("btnRun").classList.add("solid");
   $("btnRun").classList.remove("ghost");
 }
 function reveal(){
+  if (!S.completedOutput){
+    toast(t("outputMissing"), true);
+    return;
+  }
   fetch("/api/open", {
     method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({path: currentOutput()})
+    body: JSON.stringify({path: S.completedOutput})
   });
 }
 
@@ -2114,6 +2166,7 @@ function connect(){
       setEta("fpsEta", {fps: p.fps.toFixed(2), time: fmtShort(p.eta)});
       if (!S.running){
         S.running = true;
+        setModeSwitchDisabled(true);
         $("btnRun").textContent = t("cancelRender");
         $("btnRun").classList.remove("solid");
         $("btnRun").classList.add("ghost");
@@ -2124,6 +2177,10 @@ function connect(){
       el.textContent += d.log.join("\n") + "\n";
       el.scrollTop = el.scrollHeight;
       $("logs").hidden = false;
+    }
+    if (!d.running && d.result && !d.result.cancelled){
+      S.completedOutput = d.result.output || d.output || "";
+      $("reveal").hidden = !S.completedOutput;
     }
     if (!d.running && S.running){
       resetRunUI();
@@ -2141,7 +2198,6 @@ function connect(){
         setEta("fpsSize", {fps: d.result.fps.toFixed(2), size: d.result.size});
         showBreakdown(d.result.profile);
         toast(t("renderComplete"));
-        $("reveal").hidden = false;
       }
     }
   };
@@ -2180,6 +2236,8 @@ fetch("/api/env").then(r => r.json()).then(d => {
   const chip = $("gpuChip");
   S.cuda = !!d.cuda;
   S.gpuName = d.gpu || "";
+  S.depthModelAvailable = d.depth_model !== false;
+  updateDepthModelState();
   if (d.cuda && d.gpu){
     chip.classList.add("on");
     $("gpuText").textContent = S.gpuName.replace(/NVIDIA\s*/i, "");

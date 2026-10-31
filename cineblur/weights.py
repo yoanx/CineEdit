@@ -57,6 +57,25 @@ def depth_model_dir() -> str:
     return path
 
 
+def depth_model_available() -> bool:
+    """Return whether the required local depth model files are present."""
+    try:
+        path = depth_model_dir()
+    except (FileNotFoundError, OSError):
+        return False
+    config = os.path.join(path, "config.json")
+    processor = os.path.join(path, "preprocessor_config.json")
+    weights = (
+        os.path.join(path, "model.safetensors"),
+        os.path.join(path, "pytorch_model.bin"),
+    )
+    return (
+        os.path.isfile(config)
+        and os.path.isfile(processor)
+        and any(os.path.isfile(item) for item in weights)
+    )
+
+
 def ensure_weights() -> int:
     """把缺失的权重复制进缓存，返回复制的文件数。
 

@@ -22,7 +22,8 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, unquote, urlparse
 
-from .config import BlurConfig
+from .config import BlurConfig, DepthConfig
+from .depth_pipeline import DepthRenderer
 from .media import find_exe, probe
 from .pipeline import MotionBlurRenderer
 
@@ -136,6 +137,26 @@ def build_cfg(p: dict, preview: bool = False) -> BlurConfig:
     return cfg
 
 
+def build_depth_cfg(p: dict) -> DepthConfig:
+    return DepthConfig(
+        quality=p.get("quality") or "fast",
+        output_height=int(_num(p.get("preview"), 0)),
+        invert=_flag(p, "invert"),
+        codec=p.get("codec") or "auto",
+        crf=int(_num(p.get("crf"), 18)),
+        device=p.get("device") or "auto",
+        trim_start=_num(p.get("trim_start"), 0.0),
+        trim_end=_num(p.get("trim_end"), 0.0),
+    )
+
+
+def default_output(src: str, mode: str) -> str:
+    if mode == "depth":
+        return DepthConfig().output_name(src)
+    stem, _ = os.path.splitext(src)
+    return stem + "_blur.mp4"
+
+
 # ---------------------------------------------------------------- 环境
 
 def env_info() -> dict:
@@ -194,19 +215,19 @@ def start_job(payload: dict) -> dict:
             return {"ok": False, "error": "已有任务在运行"}
         src = (payload.get("src") or "").strip()
         dst = (payload.get("dst") or "").strip()
+        mode = payload.get("mode", "blur")
         if not src or not os.path.exists(src):
             return {"ok": False, "error": "输入文件不存在"}
         if not dst:
-            stem, _ = os.path.splitext(src)
-            dst = stem + "_blur.mp4"
-        cfg = build_cfg(payload)
+            dst = default_output(src, mode)
+        cfg = build_depth_cfg(payload) if mode == "depth" else build_cfg(payload)
         JOB.update(running=True, log=[], result=None, error=None, output=dst,
                    progress={"done": 0, "total": 0, "fps": 0.0, "eta": 0.0})
         _CANCEL.clear()
 
     def work():
         try:
-            r = MotionBlurRenderer(cfg)
+            r = DepthRenderer(cfg) if mode == "depth" else MotionBlurRenderer(cfg)
             stats = r.render(src, dst, progress=_set_progress,
                              cancel=_CANCEL.is_set, log=_log)
             r.close()
@@ -309,10 +330,21 @@ class Handler(BaseHTTPRequestHandler):
             from PIL import Image
             t = float(g("t", "0"))
             h = int(g("h", "540"))
+            mode = g("mode", "blur")
             with _PREVIEW_LOCK:
                 if g("orig", "0") == "1":
                     from .preview import render_original
                     arr = render_original(src, t, max_height=h)
+                elif mode == "depth":
+                    from .preview import render_depth_preview
+                    cfg = build_depth_cfg({
+                        "quality": g("quality"),
+                        "invert": g("invert"),
+                        "preview": g("preview"),
+                        "codec": g("codec"),
+                        "device": g("device"),
+                    })
+                    arr = render_depth_preview(src, t, cfg, max_height=h)
                 else:
                     from .preview import render_preview
                     cfg = build_cfg({"angle": g("angle"), "samples": g("samples"),

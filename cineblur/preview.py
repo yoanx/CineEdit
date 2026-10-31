@@ -21,7 +21,9 @@ import numpy as np
 import torch
 
 from .blur import render_frame
-from .config import BlurConfig
+from .config import BlurConfig, DepthConfig
+from .depth_engine import DepthEngine
+from .depth_ops import depth_range, normalize_depth
 from .flow import FlowEngine
 from .imageops import srgb_to_linear
 from .media import CREATIONFLAGS, find_exe, probe
@@ -30,6 +32,10 @@ _ENGINE: FlowEngine | None = None
 _LOCK = threading.Lock()
 _STATE: dict = {"key": None}
 _ORIGINAL_STATE: dict = {"key": None}
+_DEPTH_ENGINE: DepthEngine | None = None
+_DEPTH_LOCK = threading.Lock()
+_DEPTH_FRAME_CACHE: dict[tuple, np.ndarray] = {}
+_DEPTH_OUTPUT_CACHE: dict[tuple, np.ndarray] = {}
 
 
 def get_engine(cfg: BlurConfig) -> FlowEngine:
@@ -102,6 +108,32 @@ def _to_t(a: np.ndarray, dev) -> torch.Tensor:
         .float().to(dev) / 255.0
 
 
+def _cache_put(cache: dict[tuple, np.ndarray], key: tuple, value: np.ndarray) -> None:
+    if len(cache) >= 8 and key not in cache:
+        cache.pop(next(iter(cache)))
+    cache[key] = value
+
+
+def _depth_engine(cfg: DepthConfig) -> DepthEngine:
+    global _DEPTH_ENGINE
+    with _DEPTH_LOCK:
+        want = _dev(cfg)
+        if _DEPTH_ENGINE is None or _DEPTH_ENGINE.device != want:
+            if _DEPTH_ENGINE is not None:
+                _DEPTH_ENGINE.release()
+            _DEPTH_ENGINE = DepthEngine(device=want.type)
+        return _DEPTH_ENGINE
+
+
+def _depth_frame(src: str, idx: int, w: int, h: int) -> np.ndarray:
+    key = (src, os.path.getmtime(src), idx, w, h)
+    frame = _DEPTH_FRAME_CACHE.get(key)
+    if frame is None:
+        frame = _extract_frames(src, idx, w, h, 1)[0].copy()
+        _cache_put(_DEPTH_FRAME_CACHE, key, frame)
+    return frame
+
+
 def _frames_at(src: str, frame_idx: int, w: int, h: int, dev):
     """取 frame_idx 及其前后帧，带解码缓存。返回 (prev, cur, next, 是否首帧)。"""
     key = ("dec", src, os.path.getmtime(src), frame_idx, w, h)
@@ -159,6 +191,37 @@ def render_preview(src: str, t: float, cfg: BlurConfig,
     out = render_frame(prev_t, cur_t, next_t, f_nf, -f_nf, cfg,
                        f_nb=f_nb, f_pf=f_pf, linear=lin)
     return (out.clamp(0, 1)[0].permute(1, 2, 0).cpu().numpy() * 255).round().astype(np.uint8)
+
+
+@torch.inference_mode()
+def render_depth_preview(src: str, t: float, cfg: DepthConfig,
+                         max_height: int = 540) -> np.ndarray:
+    """Return a cached RGB visualization of the estimated depth frame."""
+    mtime = os.path.getmtime(src)
+    w, h = _resolve_size(src, max_height)
+    fps = _fps_of(src, mtime)
+    idx = int(round(t * fps))
+    out_key = (src, mtime, idx, cfg.quality, cfg.invert, max_height)
+    cached = _DEPTH_OUTPUT_CACHE.get(out_key)
+    if cached is not None:
+        return cached
+
+    frame = _depth_frame(src, idx, w, h)
+    engine = _depth_engine(cfg)
+    depth = engine.estimate(_to_t(frame, engine.device), cfg.input_size())
+    low, high = depth_range(depth)
+    gray = normalize_depth(depth, low, high, cfg.invert)
+    gray_u8 = (
+        gray.clamp(0, 1)[0, 0]
+        .mul(255)
+        .round()
+        .to(torch.uint8)
+        .cpu()
+        .numpy()
+    )
+    out = np.repeat(gray_u8[..., None], 3, axis=2)
+    _cache_put(_DEPTH_OUTPUT_CACHE, out_key, out)
+    return out
 
 
 def render_original(src: str, t: float, max_height: int = 720) -> np.ndarray:

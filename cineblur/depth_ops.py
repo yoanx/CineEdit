@@ -5,8 +5,8 @@ import torch
 
 def depth_range(depth: torch.Tensor, sample_step: int = 8) -> tuple[float, float]:
     sample = depth.detach().float().flatten()[:: max(1, sample_step)]
-    low = sample.min().item()
-    high = sample.max().item()
+    low = torch.quantile(sample, 0.01).item()
+    high = torch.quantile(sample, 0.99).item()
     return float(low), float(high)
 
 

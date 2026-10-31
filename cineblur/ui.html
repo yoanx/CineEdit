@@ -27,6 +27,7 @@
   --ease:cubic-bezier(.22,1,.36,1);
   --r:6px;
   --rail:340px;
+  --mode-rail:72px;
   --h-top:56px;--h-bar:40px;--h-time:78px;--pad:24px;
   --mono:"Cascadia Mono","Consolas",ui-monospace,SFMono-Regular,monospace;
 }
@@ -103,8 +104,27 @@ button{cursor:pointer}
 .btn.sm{padding:5px 10px;font-size:11px}
 
 /* ── 主区 ─────────────────────────────────────────────── */
-.workspace{display:grid;grid-template-columns:minmax(0,1fr) var(--rail);
+.workspace{display:grid;grid-template-columns:var(--mode-rail) minmax(0,1fr) var(--rail);
   min-height:0;overflow:hidden}
+
+/* 模式栏 */
+.mode-rail{
+  display:flex;flex-direction:column;gap:8px;min-width:0;
+  padding:12px 8px;background:#121214;border-right:1px solid var(--rule);
+}
+.mode-btn{
+  width:100%;min-height:64px;padding:9px 4px;border:1px solid transparent;
+  border-radius:var(--r-sm);background:transparent;color:var(--ink-3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  font-size:11px;line-height:1.2;white-space:nowrap;
+  transition:background .18s var(--ease),border-color .18s var(--ease),color .18s var(--ease);
+}
+.mode-btn:hover{background:#1d1d20;border-color:var(--rule);color:var(--ink)}
+.mode-btn.on{
+  background:#232326;border-color:var(--rule-2);color:var(--ink);font-weight:600;
+  box-shadow:inset 2px 0 0 var(--accent);
+}
+.mode-btn .icon{width:20px;height:20px}
 
 /* 舞台 */
 .stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--stage)}
@@ -438,7 +458,14 @@ select.inline.wide{width:100%;text-align:left;border-color:var(--rule);
   .angle b{font-size:26px}
 }
 @media (max-width:980px){
-  .workspace{grid-template-columns:1fr}
+  :root{--mode-rail:56px}
+  .workspace{grid-template-columns:var(--mode-rail) minmax(0,1fr)}
+  .mode-rail{padding:8px 6px}
+  .mode-btn{min-height:48px;padding:0;gap:0}
+  .mode-btn span{
+    position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0,0,0,0);white-space:nowrap;border:0;
+  }
   .inspector{
     position:fixed;top:0;right:0;bottom:0;width:min(360px,88vw);z-index:70;
     border-left:1px solid var(--rule);box-shadow:-20px 0 60px -30px rgba(26,25,22,.5);
@@ -562,7 +589,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visi
   background:transparent;color:var(--ink-2);
 }
 .icon-btn:hover{background:#1d1d20;border-color:var(--rule);color:var(--ink)}
-.workspace{grid-template-columns:minmax(0,1fr) var(--rail)}
+.workspace{grid-template-columns:var(--mode-rail) minmax(0,1fr) var(--rail)}
 .stage{background:var(--stage)}
 .stage-bar{
   height:var(--h-bar);padding:0 20px;
@@ -755,7 +782,7 @@ select.inline.wide{min-height:40px;background-color:var(--sunken)}
   .angle b{font-size:28px}
 }
 @media (max-width:980px){
-  .workspace{grid-template-columns:1fr}
+  .workspace{grid-template-columns:var(--mode-rail) minmax(0,1fr)}
   .inspector{
     width:min(360px,88vw);border-left:1px solid var(--rule);
     border-radius:var(--r-lg) 0 0 var(--r-lg);
@@ -860,6 +887,15 @@ select.inline{font-size:13px}
     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
     <path d="M14 2v6h6"/><path d="m10 11 5 3-5 3z"/>
   </symbol>
+  <symbol id="i-motion" viewBox="0 0 24 24">
+    <path d="M4 7h9M3 12h13M5 17h8"/>
+    <path d="M14 5c2.2 0 4 1.6 4 3.5S16.2 12 14 12"/>
+    <path d="M13 15c2.8 0 5 1.4 5 3"/>
+  </symbol>
+  <symbol id="i-depth" viewBox="0 0 24 24">
+    <path d="m12 3 9 5-9 5-9-5 9-5Z"/>
+    <path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>
+  </symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
 </svg>
 <input type="file" id="fileInput" hidden
@@ -891,12 +927,25 @@ select.inline{font-size:13px}
   </header>
 
   <main class="workspace">
+    <nav class="mode-rail" aria-label="处理模式">
+      <button type="button" id="modeBlur" class="mode-btn on" aria-pressed="true"
+              aria-label="运动模糊" onclick="setProcessMode('blur')">
+        <svg class="icon" aria-hidden="true"><use href="#i-motion"/></svg>
+        <span>运动模糊</span>
+      </button>
+      <button type="button" id="modeDepth" class="mode-btn" aria-pressed="false"
+              aria-label="深度图" onclick="setProcessMode('depth')">
+        <svg class="icon" aria-hidden="true"><use href="#i-depth"/></svg>
+        <span>深度图</span>
+      </button>
+    </nav>
+
     <section class="stage">
       <div class="stage-bar">
         <div class="seg" id="viewMode">
-          <button data-mode="compare" class="on" aria-pressed="true">对比</button>
-          <button data-mode="orig" aria-pressed="false">原始</button>
-          <button data-mode="blur" aria-pressed="false">模糊</button>
+          <button id="viewCompare" data-mode="compare" class="on" aria-pressed="true">对比</button>
+          <button id="viewOriginal" data-mode="orig" aria-pressed="false">原片</button>
+          <button id="viewResult" data-mode="blur" aria-pressed="false">模糊</button>
         </div>
         <div class="spacer"></div>
         <span class="stage-meta" id="latency"></span>
@@ -918,7 +967,7 @@ select.inline{font-size:13px}
           <img id="imgA" class="base" alt="原始帧">
           <img id="imgB" class="over" alt="模糊后帧">
           <div class="badge l">原始</div>
-          <div class="badge r">模糊</div>
+          <div class="badge r" id="resultBadge">模糊视图</div>
           <div class="wipe" id="wipe"></div>
         </figure>
 
@@ -958,6 +1007,7 @@ select.inline{font-size:13px}
       </div>
 
       <div class="insp-body">
+        <div id="blurPanel">
         <div class="sec">
           <div class="sec-h"><span>快门角</span><em id="angleHint">电影标准</em></div>
           <div class="angle">
@@ -1020,6 +1070,40 @@ select.inline{font-size:13px}
             <input type="checkbox" id="robust"><i></i>
           </label>
         </div>
+        </div>
+
+        <div id="depthPanel" hidden>
+          <div class="sec">
+            <div class="sec-h"><span>深度估计</span></div>
+            <div class="field"><label for="depthQuality">深度质量</label>
+              <select id="depthQuality" class="inline" aria-label="深度质量">
+                <option value="turbo">极速</option>
+                <option value="fast" selected>快速</option>
+                <option value="fine">精细</option>
+              </select>
+            </div>
+            <div class="pair" style="margin-bottom:4px">
+              <div><label for="depthRes">输出分辨率</label>
+                <select id="depthRes" class="inline wide" aria-label="输出分辨率">
+                  <option value="0" selected>源尺寸</option>
+                  <option value="1080">1080p</option>
+                  <option value="720">720p</option>
+                </select>
+              </div>
+              <div><label for="depthCodec">编码器</label>
+                <select id="depthCodec" class="inline wide" aria-label="编码器">
+                  <option value="auto" selected>自动</option>
+                  <option value="h264_nvenc">H.264 NVENC</option>
+                  <option value="libx264">libx264</option>
+                </select>
+              </div>
+            </div>
+            <label class="switch">
+              <div><span>反转深度</span><small>近处为白，远处为黑</small></div>
+              <input type="checkbox" id="depthInvert"><i></i>
+            </label>
+          </div>
+        </div>
 
         <div class="sec">
           <div class="sec-h"><span>区间与输出</span><em id="rangeMs"></em></div>
@@ -1029,7 +1113,8 @@ select.inline{font-size:13px}
           </div>
           <div class="path">
             <input type="text" id="dst" placeholder="自动生成 _blur.mp4" aria-label="输出路径">
-            <button class="btn ghost sm" onclick="openPicker('dst')">更改</button>
+            <input type="text" id="depthDst" hidden placeholder="自动生成 _depth.mp4" aria-label="深度输出路径">
+            <button class="btn ghost sm" onclick="openOutputPicker()">更改</button>
           </div>
         </div>
       </div>
@@ -1078,21 +1163,37 @@ select.inline{font-size:13px}
 const $ = id => document.getElementById(id);
 const S = {
   src: "", dur: 0, fps: 30, t: 0, wipe: 50,
-  mode: "compare", ctrl: null, running: false,
+  mode: "compare", processMode: "blur", ctrl: null, running: false,
   frameReady: false, lastLatency: 0, previewPending: false,
   origKey: "", origUrl: "", blurUrl: "",
   uploading: false, cuda: false, gpuName: "",
   statusKey: "ready", statusVars: {}, etaKey: "", etaVars: {},
   breakdownParts: null
 };
+const PROCESS_STORAGE = "cineblur.mode";
 
 const STATIC_EN = {
   "未打开素材": "No video open",
   "打开视频": "Open video",
   "参数": "Settings",
   "对比": "Compare",
+  "原片": "Original",
   "原始": "Original",
   "模糊": "Blurred",
+  "深度": "Depth",
+  "运动模糊": "Motion blur",
+  "深度图": "Depth map",
+  "处理模式": "Processing mode",
+  "模糊视图": "Blur view",
+  "深度视图": "Depth view",
+  "深度估计": "Depth estimation",
+  "深度质量": "Depth quality",
+  "输出分辨率": "Output resolution",
+  "源尺寸": "Source size",
+  "反转深度": "Invert depth",
+  "近处为白，远处为黑": "Near is white, far is black",
+  "深度输出路径": "Depth output path",
+  "自动生成 _depth.mp4": "Auto: _depth.mp4",
   "打开一段视频开始": "Open a video to begin",
   "快门区间内取子帧采样，按光流重建每个时刻的画面，在线性光空间积分。 旋转、加速、遮挡与相机运动都按真实曝光处理。":
     "Samples subframes within the shutter interval, reconstructs each moment with optical flow, and integrates in linear light. Rotation, acceleration, occlusion, and camera motion follow real exposure.",
@@ -1159,6 +1260,15 @@ const STATIC_EN = {
 
 const I18N = {
   zh: {
+    compare: "对比",
+    original: "原片",
+    blurred: "模糊",
+    depth: "深度",
+    blurredView: "模糊视图",
+    depthView: "深度视图",
+    originalFrame: "原始帧",
+    blurredFrame: "模糊后帧",
+    depthFrame: "深度帧",
     noVideo: "未打开素材",
     detecting: "检测中",
     cpuMode: "CPU 模式",
@@ -1205,6 +1315,15 @@ const I18N = {
     breakdown: "分段 ms/帧 · 光流 {flow} · 积分 {render} · 解码 {dec} · 编码 {enc}"
   },
   en: {
+    compare: "Compare",
+    original: "Original",
+    blurred: "Blurred",
+    depth: "Depth",
+    blurredView: "Blur view",
+    depthView: "Depth view",
+    originalFrame: "Original frame",
+    blurredFrame: "Blurred frame",
+    depthFrame: "Depth frame",
     noVideo: "No video open",
     detecting: "Detecting",
     cpuMode: "CPU mode",
@@ -1255,7 +1374,7 @@ const I18N = {
 let LANG = "zh";
 const TEXT_ORIGINALS = new WeakMap();
 const ATTR_ORIGINALS = new WeakMap();
-const STATIC_SKIP = "#fileChipName,#fileMeta,#gpuText,#angleV,#angleMs,#angleHint,#samplesV,#strengthV,#photoV,#costHint,#rangeMs,#latency,#status,#eta,#breakdown,#log,#mpath,#dst,#tcur,#tdur,#recentList,.sheet-ls";
+const STATIC_SKIP = "#fileChipName,#fileMeta,#gpuText,#angleV,#angleMs,#angleHint,#samplesV,#strengthV,#photoV,#costHint,#rangeMs,#latency,#status,#eta,#breakdown,#log,#mpath,#dst,#depthDst,#tcur,#tdur,#recentList,.sheet-ls,#viewCompare,#viewOriginal,#viewResult,#resultBadge";
 
 function t(key, vars = {}){
   const template = (I18N[LANG] && I18N[LANG][key]) || (I18N.zh[key] || key);
@@ -1315,6 +1434,7 @@ function refreshDynamicLanguage(){
   syncAngle();
   costHint();
   drawRange();
+  setViewLabels();
   if (S.lastLatency) $("latency").textContent = t("previewLatency", {ms: Math.round(S.lastLatency)});
   renderBreakdown();
 }
@@ -1335,6 +1455,10 @@ function setLanguage(lang, persist = true){
 document.querySelectorAll(".lang-switch button").forEach(b =>
   b.addEventListener("click", () => setLanguage(b.dataset.lang)));
 try { LANG = localStorage.getItem("cineblur.lang") || "zh"; } catch(e){}
+try {
+  const savedMode = localStorage.getItem(PROCESS_STORAGE);
+  if (savedMode === "depth" || savedMode === "blur") S.processMode = savedMode;
+} catch(e){}
 applyStaticLanguage(LANG);
 
 /* ── 工具 ─────────────────────────────────────────────── */
@@ -1374,6 +1498,51 @@ function params(){
     robust: $("robust").checked,
     bicubic: $("bicubic").checked
   };
+}
+
+/* ── 处理模式 ─────────────────────────────────────────── */
+function currentOutputId(){
+  return S.processMode === "depth" ? "depthDst" : "dst";
+}
+function currentOutput(){
+  return $(currentOutputId()).value.trim();
+}
+function defaultOutputPath(src, mode){
+  if (!src) return "";
+  return src.replace(/\.[^.]+$/, "") + (mode === "depth" ? "_depth.mp4" : "_blur.mp4");
+}
+function ensureModeOutput(mode){
+  const input = $(mode === "depth" ? "depthDst" : "dst");
+  if (!input.value.trim()) input.value = defaultOutputPath(S.src, mode);
+}
+function openOutputPicker(){
+  openPicker(currentOutputId());
+}
+function setViewLabels(){
+  const depth = S.processMode === "depth";
+  $("viewCompare").textContent = t("compare");
+  $("viewOriginal").textContent = t("original");
+  $("viewResult").textContent = depth ? t("depth") : t("blurred");
+  $("resultBadge").textContent = depth ? t("depthView") : t("blurredView");
+  $("imgA").alt = t("originalFrame");
+  $("imgB").alt = depth ? t("depthFrame") : t("blurredFrame");
+}
+function setProcessMode(mode){
+  S.processMode = mode === "depth" ? "depth" : "blur";
+  try { localStorage.setItem(PROCESS_STORAGE, S.processMode); } catch(e){}
+  const depth = S.processMode === "depth";
+  $("blurPanel").hidden = depth;
+  $("depthPanel").hidden = !depth;
+  $("dst").hidden = depth;
+  $("depthDst").hidden = !depth;
+  $("modeBlur").classList.toggle("on", !depth);
+  $("modeDepth").classList.toggle("on", depth);
+  $("modeBlur").setAttribute("aria-pressed", String(!depth));
+  $("modeDepth").setAttribute("aria-pressed", String(depth));
+  ensureModeOutput(S.processMode);
+  setViewLabels();
+  setMode("compare");
+  queuePreview(0);
 }
 
 /* ── 时间轴 ───────────────────────────────────────────── */
@@ -1431,14 +1600,21 @@ async function fetchPreview(){
   $("spin").classList.add("on");
   const p = params();
   const q = new URLSearchParams({
-    src: S.src, t: S.t.toFixed(3), h: "540",
-    angle: p.angle, samples: p.samples,
-    strength: p.strength.toFixed(2),
-    photometric: p.photometric.toFixed(2),
-    quality: p.quality,
-    robust: p.robust ? "1" : "0",
-    bicubic: p.bicubic ? "1" : "0"
+    src: S.src, t: S.t.toFixed(3), h: "540", mode: S.processMode
   });
+  if (S.processMode === "depth"){
+    q.set("quality", $("depthQuality").value);
+    q.set("invert", $("depthInvert").checked ? "1" : "0");
+    q.set("preview", "540");
+  }else{
+    q.set("angle", p.angle);
+    q.set("samples", p.samples);
+    q.set("strength", p.strength.toFixed(2));
+    q.set("photometric", p.photometric.toFixed(2));
+    q.set("quality", p.quality);
+    q.set("robust", p.robust ? "1" : "0");
+    q.set("bicubic", p.bicubic ? "1" : "0");
+  }
   const t0 = performance.now();
   try{
     const rb = await fetch("/api/frame?" + q, {signal});
@@ -1603,10 +1779,13 @@ $("photo").addEventListener("change", () => queuePreview());
 $("quality").addEventListener("change", () => { costHint(); queuePreview(); });
 $("robust").addEventListener("change", () => queuePreview());
 $("bicubic").addEventListener("change", () => queuePreview());
+$("depthQuality").addEventListener("change", () => queuePreview());
+$("depthInvert").addEventListener("change", () => queuePreview());
 $("tin").addEventListener("change", () => { drawRange(); queuePreview(); });
 $("tout").addEventListener("change", () => { drawRange(); queuePreview(); });
 $("tin").addEventListener("input", drawRange);
 $("tout").addEventListener("input", drawRange);
+setProcessMode(S.processMode);
 setLanguage(LANG, false);
 $("btnRun").disabled = true;      // 未打开素材前不提供主操作
 
@@ -1665,9 +1844,9 @@ $("fileInput").addEventListener("change", e => {
 });
 
 function openPicker(target){
-  pickTarget = target === "dst" ? "dst" : "src";
+  pickTarget = target === "depthDst" ? "depthDst" : target === "dst" ? "dst" : "src";
   pickerReturnFocus = document.activeElement;
-  const cur = pickTarget === "src" ? S.src : $("dst").value;
+  const cur = pickTarget === "src" ? S.src : $(pickTarget).value;
   const start = cur && cur.indexOf(".") > 0 ? cur.replace(/[\\/][^\\/]*$/, "") : "";
   loadList(start);
 }
@@ -1688,7 +1867,7 @@ function loadList(path){
       el.appendChild(row("i-file-video", n, () => {
         const full = d.path.replace(/[\\/]$/, "") + "\\" + n;
         if (pickTarget === "src") loadVideo(full);
-        else { $("dst").value = full; closeModal(); }
+        else { $(pickTarget).value = full; closeModal(); }
       }, true));
     });
     $("modal").classList.add("on");
@@ -1719,7 +1898,11 @@ function closeModal(){
 function useDir(){
   if (!curPath) return;
   if (pickTarget === "src") loadVideo(curPath);
-  else { $("dst").value = curPath.replace(/[\\/]$/, "") + "\\output.mp4"; closeModal(); }
+  else {
+    const suffix = pickTarget === "depthDst" ? "_depth.mp4" : "_blur.mp4";
+    $(pickTarget).value = curPath.replace(/[\\/]$/, "") + "\\output" + suffix;
+    closeModal();
+  }
 }
 $("modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
 $("modal").addEventListener("keydown", e => {
@@ -1803,7 +1986,8 @@ function loadVideo(path){
     $("fileMeta").textContent = d.width + "×" + d.height + " · " +
       (d.fps || 0).toFixed(2) + "fps";
     $("tdur").textContent = fmt(d.duration);
-    $("dst").value = path.replace(/\.[^.]+$/, "") + "_blur.mp4";
+    $("dst").value = defaultOutputPath(path, "blur");
+    $("depthDst").value = defaultOutputPath(path, "depth");
     $("tout").value = d.duration.toFixed(2);
     $("tin").value = "0";
     drawRange();
@@ -1829,14 +2013,28 @@ function runPrimary(){
 function startRender(){
   if (!S.src){ toast(t("openFirst")); return; }
   const p = params();
+  const renderMode = S.processMode;
+  const outputId = renderMode === "depth" ? "depthDst" : "dst";
   const body = {
-    src: S.src, dst: $("dst").value.trim(),
-    angle: p.angle, samples: p.samples, strength: p.strength,
-    photometric: p.photometric, quality: p.quality, robust: p.robust,
-    bicubic: p.bicubic,
-    preview: +$("res").value, codec: $("codec").value,
+    mode: renderMode, src: S.src, dst: $(outputId).value.trim(),
     trim_start: +$("tin").value || 0, trim_end: +$("tout").value || 0
   };
+  if (renderMode === "depth"){
+    body.quality = $("depthQuality").value;
+    body.invert = $("depthInvert").checked;
+    body.preview = +$("depthRes").value;
+    body.codec = $("depthCodec").value;
+  }else{
+    body.angle = p.angle;
+    body.samples = p.samples;
+    body.strength = p.strength;
+    body.photometric = p.photometric;
+    body.quality = p.quality;
+    body.robust = p.robust;
+    body.bicubic = p.bicubic;
+    body.preview = +$("res").value;
+    body.codec = $("codec").value;
+  }
   S.breakdownParts = null;
   renderBreakdown();
   $("log").textContent = "";
@@ -1857,7 +2055,7 @@ function startRender(){
       toast(t("startFailed") + (d.error ? ": " + d.error : ""), true);
       resetRunUI();
     }else{
-      $("dst").value = d.output;
+      $(outputId).value = d.output;
     }
   }).catch(e => { toast(t("startFailed") + ": " + e.message, true); resetRunUI(); });
 }
@@ -1874,7 +2072,7 @@ function resetRunUI(){
 function reveal(){
   fetch("/api/open", {
     method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({path: $("dst").value.trim()})
+    body: JSON.stringify({path: currentOutput()})
   });
 }
 

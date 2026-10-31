@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
@@ -16,6 +17,53 @@ from cineblur.webui import Handler, QuietThreadingHTTPServer, build_cfg
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEMO = os.path.join(ROOT, "out", "demo_src.mp4")
+
+
+class BlockingStderrStdout:
+    def __init__(self, process, frame):
+        self.process = process
+        self.frame = frame
+
+    def read(self, size=-1):
+        if not self.process.stderr_drained.wait(timeout=0.5):
+            return b""
+        return self.frame[:size]
+
+    def close(self):
+        pass
+
+
+class BlockingStderrStderr:
+    def __init__(self, process):
+        self.process = process
+        self.sent = False
+
+    def read(self, size=-1):
+        if self.sent:
+            return b""
+        self.sent = True
+        self.process.stderr_drained.set()
+        return b"decoder warning\n"
+
+    def close(self):
+        pass
+
+
+class BlockingStderrProcess:
+    def __init__(self, frame):
+        self.stderr_drained = threading.Event()
+        self.stdout = BlockingStderrStdout(self, frame)
+        self.stderr = BlockingStderrStderr(self)
+        self.returncode = 0
+
+    def close(self):
+        pass
+
+    def wait(self, timeout=None):
+        return self.returncode
+
+    def kill(self):
+        pass
 
 
 class QualityPresetTests(unittest.TestCase):
@@ -52,6 +100,23 @@ class OutputPathTests(unittest.TestCase):
 
 
 class RenderFastPathTests(unittest.TestCase):
+    def test_decoder_drains_stderr_so_first_frame_is_not_blocked(self):
+        frame = np.full((2, 2, 3), 127, dtype=np.uint8)
+        proc = BlockingStderrProcess(frame.tobytes())
+
+        with (
+            patch("cineblur.media.find_exe", return_value="ffmpeg"),
+            patch("cineblur.media.subprocess.Popen", return_value=proc),
+        ):
+            decoder = Decoder("corrupt.mp4", 2, 2)
+            try:
+                result = decoder.read()
+            finally:
+                decoder.close()
+
+        self.assertIsNotNone(result)
+        np.testing.assert_array_equal(result, frame)
+
     def test_motion_blur_cancel_skips_engine_initialization(self):
         renderer = MotionBlurRenderer(BlurConfig(device="cpu"))
 

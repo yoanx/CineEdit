@@ -11,6 +11,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass
 from fractions import Fraction
 
@@ -208,6 +209,30 @@ class Decoder:
         self.proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                      stderr=subprocess.PIPE,
                                      creationflags=CREATIONFLAGS, bufsize=self.frame_bytes * 2)
+        self._stderr_tail = bytearray()
+        self._stderr_lock = threading.Lock()
+        self._stderr_thread = threading.Thread(
+            target=self._drain_stderr,
+            daemon=True,
+        )
+        self._stderr_thread.start()
+
+    def _drain_stderr(self):
+        try:
+            while True:
+                chunk = self.proc.stderr.read(65536)
+                if not chunk:
+                    break
+                with self._stderr_lock:
+                    self._stderr_tail.extend(chunk)
+                    if len(self._stderr_tail) > 65536:
+                        del self._stderr_tail[:-65536]
+        except (OSError, ValueError):
+            pass
+
+    def stderr_text(self) -> str:
+        with self._stderr_lock:
+            return bytes(self._stderr_tail).decode("utf-8", "ignore")
 
     def read(self) -> np.ndarray | None:
         buf = self.proc.stdout.read(self.frame_bytes)
@@ -227,6 +252,7 @@ class Decoder:
         except Exception:
             self.proc.kill()
             self.proc.wait()
+        self._stderr_thread.join(timeout=1)
 
     def __enter__(self):
         return self

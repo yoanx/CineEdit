@@ -4,10 +4,12 @@ import os
 import subprocess
 import tempfile
 import unittest
+from queue import Queue as RealQueue
 from unittest.mock import patch
 
 import torch
 
+import cineblur.depth_pipeline as depth_pipeline
 from cineblur.config import DepthConfig
 from cineblur.depth_pipeline import DepthRenderer
 from cineblur.media import Decoder, find_exe, probe
@@ -53,6 +55,34 @@ class FailingEncoder:
     def close(self):
         self.closed = True
         return True, ""
+
+
+class RecordingEncoder:
+    instances = []
+
+    def __init__(self, *args, **kwargs):
+        self.frames_written = 0
+        self.closed = False
+        self.__class__.instances.append(self)
+
+    def write(self, frame):
+        self.frames_written += 1
+
+    def close(self):
+        self.closed = True
+        return True, ""
+
+
+class ObservedQueue(RealQueue):
+    def __init__(self, maxsize, stop_events):
+        super().__init__(maxsize)
+        self.stop_events = stop_events
+        self.sentinel_stop_states = []
+
+    def put(self, item, block=True, timeout=None):
+        if item is None:
+            self.sentinel_stop_states.append(self.stop_events[-1].is_set())
+        return super().put(item, block=block, timeout=timeout)
 
 
 class DepthPipelineTests(unittest.TestCase):
@@ -162,6 +192,9 @@ class DepthPipelineTests(unittest.TestCase):
             self.assertGreater(int(frames[0][..., 0].max() - frames[0][..., 0].min()), 20)
 
     def test_writer_failure_stops_after_first_failed_write(self):
+        if not find_exe("ffmpeg"):
+            self.skipTest("ffmpeg is required")
+
         cfg = DepthConfig(
             quality="fast",
             output_height=64,
@@ -187,6 +220,55 @@ class DepthPipelineTests(unittest.TestCase):
         self.assertEqual(encoder.frames_written, 1)
         self.assertTrue(encoder.closed)
         self.assertLess(len(engine.calls), 15)
+
+    def test_normal_completion_queues_writer_sentinel_before_stop(self):
+        if not find_exe("ffmpeg"):
+            self.skipTest("ffmpeg is required")
+
+        cfg = DepthConfig(
+            quality="fast",
+            output_height=64,
+            device="cpu",
+            codec="libx264",
+            trim_end=0.2,
+        )
+        stop_events = []
+        queues = []
+        real_put = depth_pipeline._put
+
+        def tracked_put(queue, item, stop):
+            stop_events.append(stop)
+            return real_put(queue, item, stop)
+
+        def make_queue(maxsize=0):
+            if len(queues) == 1:
+                observed = ObservedQueue(maxsize, stop_events)
+                queues.append(observed)
+                return observed
+            queue = RealQueue(maxsize)
+            queues.append(queue)
+            return queue
+
+        RecordingEncoder.instances.clear()
+        engine = ConstantEngine()
+        renderer = DepthRenderer(cfg, engine=engine)
+        with tempfile.TemporaryDirectory() as tmp:
+            dst = os.path.join(tmp, "normal-depth.mp4")
+            try:
+                with (
+                    patch("cineblur.depth_pipeline._put", side_effect=tracked_put),
+                    patch("cineblur.depth_pipeline.Queue", side_effect=make_queue),
+                    patch("cineblur.depth_pipeline.Encoder", RecordingEncoder),
+                ):
+                    stats = renderer.render(DEMO, dst)
+            finally:
+                renderer.close()
+
+        encoder = RecordingEncoder.instances[0]
+        self.assertEqual(stats["frames"], 6)
+        self.assertEqual(encoder.frames_written, 6)
+        self.assertTrue(encoder.closed)
+        self.assertEqual(queues[1].sentinel_stop_states, [False])
 
 
 if __name__ == "__main__":

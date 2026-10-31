@@ -182,6 +182,7 @@ class DepthRenderer:
         cancelled = False
         previous_range = None
         threads_started = False
+        render_failed = False
 
         try:
             reader_thread.start()
@@ -221,15 +222,33 @@ class DepthRenderer:
                     break
                 done += 1
                 _report(progress, done, total, started)
+        except BaseException:
+            render_failed = True
+            raise
         finally:
-            stop.set()
             if threads_started:
-                try:
-                    output_queue.put_nowait(None)
-                except Full:
-                    pass
-                writer_thread.join(timeout=1800)
-                reader_thread.join(timeout=30)
+                normal_shutdown = (
+                    not cancelled
+                    and not render_failed
+                    and not reader_errors
+                    and not writer_errors
+                    and not stop.is_set()
+                )
+                if normal_shutdown:
+                    _put(output_queue, None, stop)
+                    writer_thread.join(timeout=1800)
+                    stop.set()
+                    reader_thread.join(timeout=30)
+                else:
+                    stop.set()
+                    try:
+                        output_queue.put_nowait(None)
+                    except Full:
+                        pass
+                    writer_thread.join(timeout=1800)
+                    reader_thread.join(timeout=30)
+            else:
+                stop.set()
             decoder.close()
             ok, error = encoder.close()
 

@@ -12,7 +12,7 @@ import torch
 
 from .config import DepthConfig
 from .depth_engine import DepthEngine, get_depth_engine
-from .depth_ops import depth_range, normalize_depth, smooth_range
+from .depth_ops import depth_range, normalize_depth, temporal_blend
 from .media import Decoder, Encoder, VideoInfo, probe
 
 
@@ -181,7 +181,8 @@ class DepthRenderer:
         started = time.time()
         done = 0
         cancelled = False
-        previous_range = None
+        previous_rgb = None
+        previous_depth = None
         threads_started = False
         render_failed = False
 
@@ -205,15 +206,31 @@ class DepthRenderer:
                     cfg.input_size(),
                     log=log,
                 )
-                current_range = depth_range(depth)
-                current_range = smooth_range(previous_range, current_range)
-                previous_range = current_range
+                low, high = depth_range(depth)
                 gray = normalize_depth(
                     depth,
-                    current_range[0],
-                    current_range[1],
+                    low,
+                    high,
                     cfg.invert,
                 )
+                if (
+                    cfg.temporal_stability
+                    and previous_rgb is not None
+                    and previous_depth is not None
+                ):
+                    motion = (frame_tensor - previous_rgb).abs().mean(
+                        dim=1, keepdim=True
+                    )
+                    static_mask = motion < cfg.motion_threshold
+                    if float(static_mask.float().mean()) >= cfg.min_static_ratio:
+                        gray = temporal_blend(
+                            gray,
+                            previous_depth,
+                            static_mask,
+                            cfg.temporal_alpha,
+                        )
+                previous_rgb = frame_tensor
+                previous_depth = gray.detach()
                 gray_u8 = (
                     gray.clamp(0, 1)[0]
                     .mul(255)

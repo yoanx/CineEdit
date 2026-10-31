@@ -1,7 +1,7 @@
 import unittest
 
 import torch
-from cineblur.depth_ops import depth_range, normalize_depth, smooth_range
+from cineblur.depth_ops import depth_range, normalize_depth, temporal_blend
 
 
 class DepthOpsTests(unittest.TestCase):
@@ -21,8 +21,12 @@ class DepthOpsTests(unittest.TestCase):
         inverted = normalize_depth(depth, 0.0, 1.0, invert=True)
         self.assertTrue(torch.equal(normal, 1.0 - inverted))
 
-    def test_smooth_range_uses_previous_range(self):
-        self.assertEqual(
-            smooth_range((0.0, 10.0), (10.0, 20.0), alpha=0.85),
-            (1.5, 11.5),
-        )
+    def test_temporal_blend_only_smooths_static_pixels(self):
+        current = torch.tensor([[[[1.0, 0.5]]]])
+        previous = torch.tensor([[[[0.0, 0.5]]]])
+        static = torch.tensor([[[[True, False]]]])
+
+        out = temporal_blend(current, previous, static, alpha=0.75)
+
+        self.assertTrue(torch.isclose(out[0, 0, 0, 0], torch.tensor(0.25)))
+        self.assertTrue(torch.isclose(out[0, 0, 0, 1], torch.tensor(0.5)))

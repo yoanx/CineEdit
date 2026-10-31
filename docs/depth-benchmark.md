@@ -29,5 +29,18 @@ The earlier Turbo/336 run measured 17.76 fps at 720p and 11.07 fps at 1080p.
 Fast/392 is slower, but it completed both benchmark renders without a hard
 failure. The approved Fast default therefore remains unchanged.
 
+## Temporal Stability
+
+A 10-frame comparison on `bench1080.mp4` measured the mean absolute
+frame-to-frame difference inside static background pixels:
+
+| Mode | Mean frame-to-frame difference |
+| --- | ---: |
+| Temporal stability off | 5.95 / 255 |
+| Temporal stability on | 1.36 / 255 |
+
+The motion-masked temporal blend reduced static-area flicker by approximately
+77% without optical flow or a measurable render-time penalty.
+
 Benchmark outputs and source clips stay under the ignored `out/` directory.
 This file is the tracked benchmark record.

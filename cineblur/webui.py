@@ -143,6 +143,7 @@ def build_depth_cfg(p: dict) -> DepthConfig:
         quality=p.get("quality") or "fast",
         output_height=int(_num(p.get("preview"), 0)),
         invert=_flag(p, "invert"),
+        temporal_stability=_flag(p, "temporal", True),
         codec=p.get("codec") or "auto",
         crf=int(_num(p.get("crf"), 18)),
         device=p.get("device") or "auto",

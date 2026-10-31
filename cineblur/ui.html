@@ -1110,6 +1110,10 @@ select.inline{font-size:13px}
               <div><span>反转深度</span><small id="depthInvertHint">近处为白，远处为黑</small></div>
               <input type="checkbox" id="depthInvert"><i></i>
             </label>
+            <label class="switch">
+              <div><span>时域稳定</span><small>减少静态区域闪烁</small></div>
+              <input type="checkbox" id="depthTemporal" checked><i></i>
+            </label>
             <div class="model-state" id="depthModelState" hidden></div>
           </div>
         </div>
@@ -1266,6 +1270,8 @@ const STATIC_EN = {
   "自动生成 _blur.mp4": "Auto: _blur.mp4",
   "原始帧": "Original frame",
   "模糊后帧": "Blurred frame",
+  "时域稳定": "Temporal stability",
+  "减少静态区域闪烁": "Reduce flicker in static areas",
   "就绪": "Ready",
   "检测中": "Detecting"
 };
@@ -1646,6 +1652,7 @@ async function fetchPreview(){
   if (S.processMode === "depth"){
     q.set("quality", $("depthQuality").value);
     q.set("invert", $("depthInvert").checked ? "1" : "0");
+    q.set("temporal", $("depthTemporal").checked ? "1" : "0");
     q.set("preview", "540");
   }else{
     q.set("angle", p.angle);
@@ -2066,6 +2073,7 @@ function startRender(){
   if (renderMode === "depth"){
     body.quality = $("depthQuality").value;
     body.invert = $("depthInvert").checked;
+    body.temporal = $("depthTemporal").checked;
     body.preview = +$("depthRes").value;
     body.codec = $("depthCodec").value;
   }else{

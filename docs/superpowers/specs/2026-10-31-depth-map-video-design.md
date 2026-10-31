@@ -47,10 +47,11 @@ The default output is an 8-bit H.264 MP4 with no audio, near objects rendered wh
 - Fine preset: 518-pixel model input.
 - Model input dimensions must remain multiples of 14.
 - The source frame is resized for inference, then the predicted depth is resized to the requested output resolution.
-- Depth normalization uses per-frame 1st/99th percentiles with EMA smoothing of the low/high range. The EMA factor is 0.85, with the current frame weighted at 0.15.
+- Depth normalization uses per-frame 1st/99th percentiles. The normalized depth is then blended with the previous stable frame only where the RGB frame difference is below `0.02`.
+- The temporal blend uses a previous-frame weight of `0.75`. If fewer than 15% of pixels are static, the frame is treated as a camera/scene transition and the current depth is kept.
 - Default mapping: higher inverse depth becomes white; lower inverse depth becomes black.
 - Invert mode swaps black and white.
-- No depth-map temporal filtering is applied beyond range smoothing.
+- No optical-flow temporal stabilization is used; the temporal blend is motion-masked and does not require RAFT.
 
 ## Render Pipeline
 
@@ -131,7 +132,7 @@ The output path defaults to `<source-stem>_depth.mp4`. Audio is never mapped.
 
 ## Testing
 
-- Unit tests for depth normalization, inversion, EMA range smoothing, and output shape.
+- Unit tests for depth normalization, inversion, motion-masked temporal blending, and output shape.
 - Pipeline test with a short real video: output frame count, no audio stream, grayscale content, and successful cancellation.
 - Real-model smoke test on one image and one short video.
 - API tests for depth preview and job mode.

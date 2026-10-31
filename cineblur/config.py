@@ -68,6 +68,10 @@ class DepthConfig:
     quality: str = "fast"
     output_height: int = 0
     invert: bool = False
+    temporal_stability: bool = True
+    temporal_alpha: float = 0.75
+    motion_threshold: float = 0.02
+    min_static_ratio: float = 0.15
     codec: str = "auto"
     crf: int = 18
     device: str = "auto"
@@ -86,3 +90,9 @@ class DepthConfig:
             raise ValueError("quality must be turbo, fast, or fine")
         if self.codec not in ("auto", "h264_nvenc", "libx264"):
             raise ValueError("unsupported depth codec")
+        if not 0.0 <= self.temporal_alpha <= 1.0:
+            raise ValueError("temporal_alpha must be between 0 and 1")
+        if self.motion_threshold < 0:
+            raise ValueError("motion_threshold must be non-negative")
+        if not 0.0 <= self.min_static_ratio <= 1.0:
+            raise ValueError("min_static_ratio must be between 0 and 1")

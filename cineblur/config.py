@@ -1,6 +1,7 @@
 """运行配置。所有可调参数集中在此，CLI / 界面共享。"""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 
@@ -60,3 +61,28 @@ class BlurConfig:
             raise ValueError("flow_model 只支持 raft_large / raft_small")
         if self.flow_dirs not in ("single", "both"):
             raise ValueError("flow_dirs 只支持 single / both")
+
+
+@dataclass
+class DepthConfig:
+    quality: str = "fast"
+    output_height: int = 0
+    invert: bool = False
+    codec: str = "auto"
+    crf: int = 18
+    device: str = "auto"
+    trim_start: float = 0.0
+    trim_end: float = 0.0
+
+    def input_size(self) -> int:
+        return {"turbo": 336, "fast": 392, "fine": 518}[self.quality]
+
+    def output_name(self, src: str) -> str:
+        stem, _ = os.path.splitext(src)
+        return stem + "_depth.mp4"
+
+    def validate(self) -> None:
+        if self.quality not in ("turbo", "fast", "fine"):
+            raise ValueError("quality must be turbo, fast, or fine")
+        if self.codec not in ("auto", "h264_nvenc", "libx264"):
+            raise ValueError("unsupported depth codec")

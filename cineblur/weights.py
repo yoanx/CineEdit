@@ -17,6 +17,7 @@ WEIGHT_FILES = (
     "raft_large_C_T_SKHT_V2-ff5fadd5.pth",
     "raft_small_C_T_V2-01064c6d.pth",
 )
+DEPTH_MODEL_DIR = "depth_anything_v2_small"
 
 
 def _bundle_dir() -> str | None:
@@ -43,6 +44,17 @@ def cache_dir() -> str:
         return os.path.join(torch.hub.get_dir(), "checkpoints")
     except Exception:  # noqa: BLE001
         return os.path.join(os.path.expanduser("~"), ".cache", "torch", "hub", "checkpoints")
+
+
+def depth_model_dir() -> str:
+    """返回随包的 Depth Anything V2 模型目录。"""
+    src = _bundle_dir()
+    if not src:
+        raise FileNotFoundError("depth model directory not found")
+    path = os.path.join(src, DEPTH_MODEL_DIR)
+    if not os.path.isdir(path):
+        raise FileNotFoundError(f"depth model not found: {path}")
+    return path
 
 
 def ensure_weights() -> int:

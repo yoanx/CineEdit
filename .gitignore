@@ -1,0 +1,37 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build outputs
+build/
+dist/
+installer/out/
+
+# Bundled binaries and models
+assets/ffmpeg/
+assets/weights/
+*.pth
+*.onnx
+*.exe
+*.dll
+
+# Generated media
+out/
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.webm
+*.log
+
+# Local settings and OS files
+.env
+.env.*
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

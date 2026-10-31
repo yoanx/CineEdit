@@ -16,9 +16,6 @@ from .depth_ops import depth_range, normalize_depth, smooth_range
 from .media import Decoder, Encoder, VideoInfo, probe
 
 
-PROFILE_FRAMES = 48
-
-
 def _to_tensor(arr: np.ndarray, device: torch.device) -> torch.Tensor:
     """Convert an HWC uint8 frame to a normalized NCHW RGB tensor."""
     tensor = torch.from_numpy(arr).to(device, non_blocking=True)
@@ -45,12 +42,13 @@ def _put(queue: Queue, item, stop: threading.Event) -> bool:
     return False
 
 
-def _wait(queue: Queue):
-    while True:
+def _wait(queue: Queue, stop: threading.Event):
+    while not stop.is_set():
         try:
             return queue.get(timeout=0.2)
         except Empty:
             continue
+    return None
 
 
 def _report(progress, done: int, total: int, started: float) -> None:
@@ -174,6 +172,8 @@ class DepthRenderer:
                     timing["enc_n"] += 1
                 except BaseException as exc:
                     writer_errors.append(exc)
+                    stop.set()
+                    break
 
         reader_thread = threading.Thread(target=reader, daemon=True)
         writer_thread = threading.Thread(target=writer, daemon=True)
@@ -188,10 +188,12 @@ class DepthRenderer:
             writer_thread.start()
             threads_started = True
             while True:
+                if stop.is_set():
+                    break
                 if cancel and cancel():
                     cancelled = True
                     break
-                frame = _wait(raw_queue)
+                frame = _wait(raw_queue, stop)
                 if frame is None:
                     break
 
@@ -222,7 +224,10 @@ class DepthRenderer:
         finally:
             stop.set()
             if threads_started:
-                output_queue.put(None)
+                try:
+                    output_queue.put_nowait(None)
+                except Full:
+                    pass
                 writer_thread.join(timeout=1800)
                 reader_thread.join(timeout=30)
             decoder.close()
@@ -245,7 +250,7 @@ class DepthRenderer:
                     timing[key] / timing[count_key] * 1000.0
                 )
         if profile:
-            profile["frames_profiled"] = min(done, PROFILE_FRAMES)
+            profile["frames_profiled"] = done
 
         stats = {
             "frames": done,

@@ -4,6 +4,7 @@ import os
 import subprocess
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import torch
 
@@ -35,6 +36,23 @@ class ConstantEngine:
 
     def release(self):
         self.released = True
+
+
+class FailingEncoder:
+    instances = []
+
+    def __init__(self, *args, **kwargs):
+        self.frames_written = 0
+        self.closed = False
+        self.__class__.instances.append(self)
+
+    def write(self, frame):
+        self.frames_written += 1
+        raise OSError("simulated writer failure")
+
+    def close(self):
+        self.closed = True
+        return True, ""
 
 
 class DepthPipelineTests(unittest.TestCase):
@@ -105,6 +123,7 @@ class DepthPipelineTests(unittest.TestCase):
             )
             self.assertEqual(stats["frames"], 6)
             self.assertEqual(stats["output"], dst)
+            self.assertTrue(dst.lower().endswith(".mp4"))
             self.assertTrue(os.path.isfile(dst))
             self.assertEqual(progress[-1]["done"], stats["frames"])
             self.assertEqual(progress[-1]["total"], 6)
@@ -117,8 +136,11 @@ class DepthPipelineTests(unittest.TestCase):
             self.assertAlmostEqual(info.duration, 0.2, delta=0.03)
             self.assertEqual(stats["size"], f"{info.width}x{info.height}")
             self.assertEqual(info.height, 64)
+            self.assertEqual(info.codec, "h264")
+            self.assertEqual(info.pix_fmt, "yuv420p")
             self.assertIn("dec_ms", stats["profile"])
             self.assertIn("enc_ms", stats["profile"])
+            self.assertEqual(stats["profile"]["frames_profiled"], stats["frames"])
 
             decoder = Decoder(dst, info.width, info.height)
             frames = []
@@ -138,6 +160,33 @@ class DepthPipelineTests(unittest.TestCase):
             )
             self.assertLessEqual(channel_spread, 2)
             self.assertGreater(int(frames[0][..., 0].max() - frames[0][..., 0].min()), 20)
+
+    def test_writer_failure_stops_after_first_failed_write(self):
+        cfg = DepthConfig(
+            quality="fast",
+            output_height=64,
+            device="cpu",
+            codec="libx264",
+            trim_end=0.5,
+        )
+        FailingEncoder.instances.clear()
+        engine = ConstantEngine()
+        renderer = DepthRenderer(cfg, engine=engine)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dst = os.path.join(tmp, "failed-depth.mp4")
+            try:
+                with patch("cineblur.depth_pipeline.Encoder", FailingEncoder):
+                    with self.assertRaisesRegex(RuntimeError, "encoding failed"):
+                        renderer.render(DEMO, dst)
+            finally:
+                renderer.close()
+
+        self.assertEqual(len(FailingEncoder.instances), 1)
+        encoder = FailingEncoder.instances[0]
+        self.assertEqual(encoder.frames_written, 1)
+        self.assertTrue(encoder.closed)
+        self.assertLess(len(engine.calls), 15)
 
 
 if __name__ == "__main__":

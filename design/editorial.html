@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CineBlur · 编辑台</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   方向 D — 编辑台 Editorial
+   概念：把它当成一本关于运动的画册的排版系统。冷白纸、
+   衬线标题、极细的分割线、唯一的一抹钴蓝。控件不装在
+   盒子里，而是靠下划线和留白定位。画面下方带一行说明。
+   ═══════════════════════════════════════════════════════ */
+:root{
+  --paper:#fbfbf9;
+  --surface:#ffffff;
+  --stage:#f0efeb;
+  --ink:#0d0e0f;
+  --ink-2:#5b6065;
+  --ink-3:#93979b;
+  --rule:#e4e2dc;
+  --rule-2:#cfccc4;
+  --cobalt:#1b47d6;
+  --serif:Georgia,"Source Han Serif SC","Noto Serif SC","Songti SC",SimSun,serif;
+  --sans:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif;
+  --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font:13px/1.6 var(--sans);color:var(--ink);background:var(--paper);overflow:hidden;
+  user-select:none;-webkit-font-smoothing:antialiased;
+}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+:focus-visible{outline:1px solid var(--cobalt);outline-offset:3px}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+svg.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.4;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+.app{display:grid;grid-template-rows:74px 1fr;height:100vh}
+
+/* ── 顶栏 ─────────────────────────────────────────────── */
+.topbar{
+  display:flex;align-items:center;gap:22px;padding:0 30px;
+  border-bottom:1px solid var(--rule);background:var(--paper);
+}
+.brand{display:flex;align-items:baseline;gap:14px;flex:none}
+.brand b{
+  font-family:var(--serif);font-size:25px;font-weight:400;letter-spacing:-.01em;
+  line-height:1;
+}
+.brand small{
+  font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--ink-3);
+  padding-left:14px;border-left:1px solid var(--rule-2);
+}
+.vr{width:1px;height:20px;background:var(--rule);flex:none}
+.chip{display:flex;align-items:baseline;gap:10px;min-width:0;font-size:12px}
+.chip b{font-weight:400;color:var(--ink);max-width:25vw;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.chip span{font-family:var(--mono);font-size:10px;color:var(--ink-3);white-space:nowrap}
+.spacer{flex:1;min-width:8px}
+.gpu{display:flex;align-items:center;gap:7px;font-family:var(--mono);font-size:9.5px;
+  color:var(--ink-3);letter-spacing:.04em;white-space:nowrap}
+.gpu i{width:5px;height:5px;border-radius:50%;background:var(--cobalt)}
+.lang{display:flex;gap:12px}
+.lang button{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);
+  letter-spacing:.08em;padding-bottom:2px;border-bottom:1px solid transparent}
+.lang button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.lang button:hover{color:var(--ink-2)}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;padding:8px 0;font-size:12px;
+  color:var(--ink-2);border-bottom:1px solid var(--rule-2);
+  transition:color .2s var(--ease),border-color .2s var(--ease);
+}
+.btn:hover{color:var(--ink);border-bottom-color:var(--ink)}
+.iconbtn{width:32px;height:32px;display:grid;place-items:center;color:var(--ink-3)}
+.iconbtn:hover{color:var(--ink)}
+
+/* ── 骨架 ─────────────────────────────────────────────── */
+.workspace{display:grid;grid-template-columns:88px minmax(0,1fr) 384px;min-height:0}
+
+/* ── 模式栏 ───────────────────────────────────────────── */
+.mode-rail{
+  display:flex;flex-direction:column;padding:22px 0 0;
+  border-right:1px solid var(--rule);background:var(--paper);
+}
+.mode-btn{
+  display:flex;flex-direction:column;align-items:center;gap:9px;padding:16px 4px;
+  font-family:var(--serif);font-size:11.5px;line-height:1.25;text-align:center;
+  color:var(--ink-3);border-left:2px solid transparent;
+  transition:color .2s var(--ease),border-color .2s var(--ease);
+}
+.mode-btn:hover{color:var(--ink-2)}
+.mode-btn.on{color:var(--ink);border-left-color:var(--cobalt)}
+.mode-btn.on .ic{color:var(--cobalt)}
+.mode-btn .ic{width:18px;height:18px}
+.rail-foot{
+  margin-top:auto;padding:14px 6px 18px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.14em;color:var(--ink-3);text-align:center;
+}
+
+/* ── 舞台 ─────────────────────────────────────────────── */
+.stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--stage)}
+.stage-bar{
+  height:50px;flex:none;display:flex;align-items:center;gap:22px;padding:0 30px;
+}
+.seg{display:flex;gap:20px}
+.seg button{
+  padding:4px 0;font-size:11.5px;color:var(--ink-3);border-bottom:1px solid transparent;
+  transition:all .2s var(--ease);
+}
+.seg button:hover{color:var(--ink-2)}
+.seg button.on{color:var(--ink);border-bottom-color:var(--ink)}
+.stage-meta{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);
+  letter-spacing:.06em;white-space:nowrap}
+
+.viewport{
+  position:relative;flex:1;min-height:0;display:flex;align-items:center;
+  justify-content:center;padding:8px 46px 0;
+}
+.figure{width:100%;max-width:900px}
+.plate{
+  position:relative;width:100%;aspect-ratio:16/9;background:#0a0a0a;
+  box-shadow:0 1px 2px rgba(13,14,15,.1),0 22px 50px -26px rgba(13,14,15,.5);
+}
+.plate-inner{position:relative;width:100%;height:100%;overflow:hidden}
+.scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+.wipe{
+  position:absolute;top:0;bottom:0;left:50%;width:1px;background:#fff;cursor:ew-resize;
+  box-shadow:0 0 0 1px rgba(0,0,0,.15);
+}
+.wipe::after{
+  content:"";position:absolute;top:50%;left:50%;width:26px;height:26px;
+  transform:translate(-50%,-50%);border-radius:50%;background:var(--paper);
+  border:1px solid var(--rule-2);
+  background-image:linear-gradient(90deg,transparent 46%,var(--ink-3) 46% 54%,transparent 54%);
+}
+.badge{
+  position:absolute;top:14px;font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.9);
+}
+.badge.l{left:14px}
+.badge.r{right:14px}
+.caption{
+  display:flex;align-items:baseline;justify-content:space-between;gap:20px;
+  margin-top:14px;padding-top:10px;border-top:1px solid var(--rule-2);
+  font-family:var(--serif);font-size:11.5px;color:var(--ink-2);
+}
+.caption em{font-style:italic;color:var(--ink-3)}
+.caption span{font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
+  color:var(--ink-3);white-space:nowrap}
+
+/* ── 时间轴 ───────────────────────────────────────────── */
+.timeline{flex:none;padding:0 30px 16px;margin-top:auto}
+.track{
+  position:relative;height:30px;cursor:pointer;margin-bottom:6px;
+}
+.track::before{
+  content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--rule-2);
+}
+.band{
+  position:absolute;top:50%;left:0;width:100%;height:3px;margin-top:-1.5px;
+  background:rgba(27,71,214,.13);border-left:1px solid var(--cobalt);
+  border-right:1px solid var(--cobalt);
+}
+.head{
+  position:absolute;top:4px;bottom:4px;left:45%;width:1px;background:var(--cobalt);
+}
+.head::before{
+  content:"";position:absolute;top:-4px;left:-3px;width:7px;height:7px;border-radius:50%;
+  background:var(--cobalt);
+}
+.transport{display:flex;align-items:baseline;gap:16px}
+.tbtn{color:var(--ink-3);display:grid;place-items:center;padding:4px 0}
+.tbtn:hover{color:var(--ink)}
+.tc{font-family:var(--serif);font-size:15px;color:var(--ink-3)}
+.tc b{color:var(--ink);font-weight:400;font-size:19px}
+.tips{font-family:var(--mono);font-size:9px;letter-spacing:.05em;color:var(--ink-3)}
+.tips kbd{font-family:inherit;color:var(--ink-2);border-bottom:1px solid var(--rule-2);
+  padding-bottom:1px}
+
+/* ── 参数栏 ───────────────────────────────────────────── */
+.inspector{
+  display:flex;flex-direction:column;min-height:0;background:var(--surface);
+  border-left:1px solid var(--rule);
+}
+.insp-head{
+  flex:none;display:flex;align-items:baseline;justify-content:space-between;
+  padding:26px 30px 16px;
+}
+.insp-head b{font-family:var(--serif);font-size:17px;font-weight:400;letter-spacing:.01em}
+.insp-head span{font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--ink-3)}
+.insp-body{flex:1;min-height:0;overflow-y:auto}
+.insp-body::-webkit-scrollbar{width:8px}
+.insp-body::-webkit-scrollbar-thumb{background:#e8e6e0;border:3px solid var(--surface)}
+
+.sec{padding:0 30px 30px;margin-bottom:30px;border-bottom:1px solid var(--rule)}
+.sec:last-child{border-bottom:0;margin-bottom:0}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:20px}
+.sec-h span{font-family:var(--serif);font-size:13px;letter-spacing:.04em;color:var(--ink)}
+.sec-h em{font-style:normal;font-family:var(--mono);font-size:9px;letter-spacing:.08em;
+  color:var(--ink-3)}
+
+.angle{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+.angle b{
+  font-family:var(--serif);font-size:62px;font-weight:400;line-height:.85;
+  color:var(--cobalt);letter-spacing:-.03em;
+}
+.angle b small{font-size:24px;vertical-align:super;margin-left:2px}
+.angle em{font-style:normal;font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
+  color:var(--ink-3);padding-bottom:8px}
+
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;
+  background:none;cursor:pointer;display:block}
+input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--rule-2)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;margin-top:-6px;
+  background:var(--cobalt);border:2px solid var(--surface);
+  box-shadow:0 0 0 1px var(--cobalt);
+  transition:transform .15s var(--ease);
+}
+input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15)}
+
+.presets{display:flex;gap:22px;margin-top:16px}
+.presets button{
+  font-size:11.5px;color:var(--ink-3);padding-bottom:3px;
+  border-bottom:1px solid transparent;transition:all .2s var(--ease);
+}
+.presets button:hover{color:var(--ink-2)}
+.presets button.on{color:var(--cobalt);border-bottom-color:var(--cobalt)}
+
+.field{display:flex;align-items:baseline;justify-content:space-between;
+  margin:22px 0 2px}
+.field label{font-size:12px;color:var(--ink-2)}
+.field .v{font-family:var(--mono);font-size:11px;color:var(--ink)}
+
+.switch{display:flex;align-items:center;justify-content:space-between;gap:16px;
+  margin-top:24px;cursor:pointer}
+.switch div span{display:block;font-size:12px;color:var(--ink-2)}
+.switch div small{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.switch input{
+  appearance:none;-webkit-appearance:none;width:16px;height:16px;flex:none;
+  border:1px solid var(--rule-2);cursor:pointer;position:relative;
+  transition:all .18s var(--ease);
+}
+.switch input:checked{background:var(--cobalt);border-color:var(--cobalt)}
+.switch input:checked::after{
+  content:"";position:absolute;left:4px;top:1px;width:5px;height:9px;
+  border:solid #fff;border-width:0 1.5px 1.5px 0;transform:rotate(42deg);
+}
+
+select{
+  appearance:none;width:100%;padding:5px 20px 5px 0;font-size:12px;color:var(--ink);
+  border:0;border-bottom:1px solid var(--rule-2);border-radius:0;cursor:pointer;
+  background:transparent;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5' fill='none' stroke='%2393979b'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 2px center;
+  transition:border-color .2s var(--ease);
+}
+select:hover{border-bottom-color:var(--ink-2)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:22px}
+.pair label{display:block;font-size:10px;letter-spacing:.04em;color:var(--ink-3);
+  margin-bottom:6px}
+
+.insp-foot{
+  flex:none;padding:18px 30px 22px;border-top:1px solid var(--rule);
+  background:var(--surface);
+}
+.state{display:flex;align-items:baseline;justify-content:space-between;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-3);
+  margin-bottom:12px}
+.state b{color:var(--ink-2);font-weight:400}
+.render{
+  width:100%;padding:13px;background:var(--ink);color:#fbfbf9;font-size:12.5px;
+  letter-spacing:.1em;border-radius:0;
+  transition:background .2s var(--ease);
+}
+.render:hover{background:var(--cobalt)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><b>CineBlur</b><small>OPTICAL MOTION</small></div>
+    <span class="vr"></span>
+    <div class="chip"><b>demo_src.mp4</b><span>1280×720 · 30.00p</span></div>
+    <div class="spacer"></div>
+    <div class="gpu"><i></i>RTX 5060 LAPTOP</div>
+    <div class="lang"><button class="on">中文</button><button>EN</button></div>
+    <button class="iconbtn" aria-label="设置">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1
+                 M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>
+    </button>
+    <button class="btn">打开视频</button>
+  </header>
+
+  <main class="workspace">
+    <nav class="mode-rail">
+      <button class="mode-btn on">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M3 12h4M8 9h8M18 12h3"/>
+          <circle cx="12" cy="12" r="2.2"/></svg>
+        运动模糊
+      </button>
+      <button class="mode-btn">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 4.5-8 4.5-8-4.5z"/>
+          <path d="M4 12l8 4.5 8-4.5"/><path d="M4 16.5L12 21l8-4.5"/></svg>
+        深度图
+      </button>
+      <div class="rail-foot">0.9</div>
+    </nav>
+
+    <section class="stage">
+      <div class="stage-bar">
+        <div class="seg"><button class="on">对比</button><button>原片</button><button>模糊</button></div>
+        <div class="spacer"></div>
+        <span class="stage-meta">预览 72 ms · 540p</span>
+      </div>
+
+      <div class="viewport">
+        <figure class="figure">
+          <div class="plate">
+            <div class="plate-inner" id="plate">
+<svg class="scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+                   <defs>
+                     <pattern id="diag" width="46" height="46" patternUnits="userSpaceOnUse"
+                              patternTransform="rotate(45)">
+                       <rect width="46" height="46" fill="#d6d2c9"/>
+                       <rect width="23" height="46" fill="#b6b1a6"/>
+                       <line x1="23" y1="0" x2="23" y2="46" stroke="#8b867c" stroke-width="2"/>
+                     </pattern>
+                     <filter id="mb" x="-60%" y="-40%" width="220%" height="180%">
+                       <feGaussianBlur stdDeviation="34 0"/>
+                     </filter>
+                     <clipPath id="clipSharp"><rect id="clipL" x="0" y="0" width="800" height="900"/></clipPath>
+                     <clipPath id="clipBlur"><rect id="clipR" x="800" y="0" width="800" height="900"/></clipPath>
+                   </defs>
+                   <rect width="1600" height="900" fill="url(#diag)"/>
+                   <g clip-path="url(#clipSharp)">
+                     <circle cx="470" cy="400" r="48" fill="#4fbf8f"/>
+                     <circle cx="860" cy="430" r="66" fill="#4f6ef7"/>
+                     <circle cx="950" cy="610" r="27" fill="#17171a"/>
+                     <rect x="700" y="660" width="430" height="36" rx="6" fill="#f2e34c"/>
+                   </g>
+                   <g clip-path="url(#clipBlur)" filter="url(#mb)">
+                     <circle cx="470" cy="400" r="48" fill="#4fbf8f"/>
+                     <circle cx="860" cy="430" r="66" fill="#4f6ef7"/>
+                     <circle cx="950" cy="610" r="27" fill="#17171a"/>
+                     <rect x="700" y="660" width="430" height="36" rx="6" fill="#f2e34c"/>
+                   </g>
+                 </svg>
+
+              <div class="wipe" id="wipe"></div>
+              <span class="badge l">原始</span>
+              <span class="badge r">模糊 180°</span>
+            </div>
+          </div>
+          <figcaption class="caption">
+            <span>图 14　<em>demo_src.mp4</em>，180° 快门角，16 个子帧的曝光积分</span>
+            <span>00:00.45 / 00:01.00</span>
+          </figcaption>
+        </figure>
+      </div>
+
+      <div class="timeline">
+        <div class="track" id="track">
+          <div class="band"></div>
+          <div class="head" id="head"></div>
+        </div>
+        <div class="transport">
+          <button class="tbtn" aria-label="上一帧">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <button class="tbtn" aria-label="下一帧">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+          <span class="tc"><b id="tcur">00:00.45</b> / 00:01.00</span>
+          <div class="spacer"></div>
+          <span class="tips"><kbd>←</kbd><kbd>→</kbd> 逐帧　<kbd>⇧</kbd> 5 帧　<kbd>空格</kbd> 连续预览</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="inspector">
+      <div class="insp-head"><b>参数</b><span>BLUR</span></div>
+
+      <div class="insp-body">
+        <div class="sec">
+          <div class="sec-h"><span>快门角</span><em>电影标准</em></div>
+          <div class="angle">
+            <b id="angleV">180<small>°</small></b>
+            <em>曝光 16.7 ms</em>
+          </div>
+          <input type="range" id="angle" min="0" max="360" step="5" value="180">
+          <div class="presets" id="presets">
+            <button data-a="90">硬朗</button>
+            <button data-a="180" class="on">电影</button>
+            <button data-a="270">长拖影</button>
+            <button data-a="360">全曝</button>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h"><span>积分</span><em>相对耗时 ×1.0</em></div>
+          <div class="field"><label>子帧采样</label><div class="v" id="samplesV">16</div></div>
+          <input type="range" id="samples" min="4" max="32" step="2" value="16">
+          <div class="field"><label>轨迹强度</label><div class="v" id="strengthV">100%</div></div>
+          <input type="range" id="strength" min="20" max="100" step="5" value="100">
+          <div class="field"><label>抗伪影</label><div class="v" id="photoV">0%</div></div>
+          <input type="range" id="photo" min="0" max="100" step="10" value="0">
+          <label class="switch">
+            <div><span>双三次重采样</span><small>拖影更柔，约慢一倍</small></div>
+            <input type="checkbox">
+          </label>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h"><span>引擎</span><em>RAFT</em></div>
+          <div class="field" style="margin-top:0"><label>光流精度</label></div>
+          <select><option>极速 · raft_small</option><option>快速 · raft_small</option>
+            <option selected>标准 · raft_large</option><option>精细 · raft_large</option></select>
+          <div class="pair">
+            <div><label>处理分辨率</label>
+              <select><option selected>原始</option><option>4K</option>
+                <option>1080p</option><option>720p</option></select></div>
+            <div><label>编码器</label>
+              <select><option selected>自动</option><option>H.264 NVENC</option>
+                <option>HEVC NVENC</option><option>libx264</option></select></div>
+          </div>
+          <label class="switch">
+            <div><span>双向校验</span><small>遮挡边界更稳，慢一倍</small></div>
+            <input type="checkbox">
+          </label>
+        </div>
+      </div>
+
+      <div class="insp-foot">
+        <div class="state"><span>就绪</span><b>00:01.00 · 30 帧</b></div>
+        <button class="render">开始渲染</button>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+const angle=document.getElementById('angle');
+const angleV=document.getElementById('angleV');
+const presets=[...document.querySelectorAll('#presets button')];
+function setAngle(v){
+  angle.value=v;
+  angleV.innerHTML=v+'<small>°</small>';
+  presets.forEach(b=>b.classList.toggle('on',+b.dataset.a===+v));
+}
+angle.addEventListener('input',e=>setAngle(e.target.value));
+presets.forEach(b=>b.addEventListener('click',()=>setAngle(b.dataset.a)));
+setAngle(180);
+
+[['samples','samplesV',v=>v],['strength','strengthV',v=>v+'%'],
+ ['photo','photoV',v=>v+'%']].forEach(([id,out,fmt])=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input',()=>document.getElementById(out).textContent=fmt(el.value));
+});
+
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.seg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+}));
+
+(function(){
+  const plate=document.getElementById('plate'), wipe=document.getElementById('wipe'),
+        clipL=document.getElementById('clipL'), clipR=document.getElementById('clipR');
+  let drag=false;
+  const move=e=>{
+    if(!drag) return;
+    const r=plate.getBoundingClientRect();
+    const p=Math.min(100,Math.max(0,((e.clientX-r.left)/r.width)*100));
+    wipe.style.left=p+'%';
+    const x=p*16;
+    clipL.setAttribute('width',x);
+    clipR.setAttribute('x',x);
+    clipR.setAttribute('width',1600-x);
+  };
+  wipe.addEventListener('pointerdown',e=>{drag=true;wipe.setPointerCapture(e.pointerId)});
+  wipe.addEventListener('pointermove',move);
+  wipe.addEventListener('pointerup',()=>drag=false);
+})();
+
+(function(){
+  const track=document.getElementById('track'), head=document.getElementById('head');
+  track.addEventListener('click',e=>{
+    const r=track.getBoundingClientRect();
+    const p=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+    head.style.left=(p*100)+'%';
+    document.getElementById('tcur').textContent='00:0'+(p).toFixed(2).padStart(4,'0');
+  });
+})();
+</script>
+</body>
+</html>

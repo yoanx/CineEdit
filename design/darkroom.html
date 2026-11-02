@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CineBlur · 暗房</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   方向 A — 暗房 Darkroom
+   概念：把界面当成一间冲洗房。唯一的亮色是安全灯下的
+   琥珀光，画面是墙上唯一被照亮的相纸。结构靠光的衰减
+   而不是边框来分隔。快门角是一枚可以读数的弧形刻度盘。
+   ═══════════════════════════════════════════════════════ */
+:root{
+  --bg:#0a0806;
+  --bg-2:#0e0b09;
+  --panel:#110e0c;
+  --panel-2:#171310;
+  --line:rgba(232,214,190,.075);
+  --line-2:rgba(232,214,190,.16);
+  --ink:#efe4d3;
+  --ink-2:#b1a08a;
+  --ink-3:#7a6b59;
+  --amber:#e0a955;
+  --amber-hi:#f6cf8b;
+  --amber-dim:rgba(224,169,85,.11);
+  --serif:Georgia,"Source Han Serif SC","Noto Serif SC","Songti SC",SimSun,serif;
+  --sans:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif;
+  --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+  --ease:cubic-bezier(.22,1,.36,1);
+  --r:2px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font:13px/1.5 var(--sans);color:var(--ink);overflow:hidden;
+  user-select:none;-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1000px 560px at 10% -14%,rgba(224,169,85,.075),transparent 62%),
+    radial-gradient(760px 420px at 96% 108%,rgba(224,169,85,.045),transparent 60%),
+    var(--bg);
+}
+/* 相纸颗粒 */
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:999;opacity:.05;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay;
+}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+:focus-visible{outline:1px solid var(--amber);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+svg.ic{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.5;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+.app{display:grid;grid-template-rows:64px 1fr;height:100vh}
+
+/* ── 顶栏 ─────────────────────────────────────────────── */
+.topbar{
+  display:flex;align-items:center;gap:16px;padding:0 22px;
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:11px;flex:none}
+.aperture{width:28px;height:28px;color:var(--amber);flex:none}
+.brand b{
+  font-family:var(--serif);font-size:17px;font-weight:400;letter-spacing:.015em;
+  display:block;line-height:1.15;
+}
+.brand small{
+  display:block;font-size:9px;letter-spacing:.22em;color:var(--ink-3);
+  font-family:var(--mono);text-transform:uppercase;
+}
+.chip{
+  display:flex;align-items:center;gap:10px;min-width:0;
+  padding:6px 12px;border:1px solid var(--line);border-radius:var(--r);
+  background:rgba(255,255,255,.014);font-size:11.5px;color:var(--ink-2);
+}
+.chip b{font-weight:400;color:var(--ink);max-width:26vw;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.chip span{color:var(--ink-3);font-family:var(--mono);font-size:10.5px;white-space:nowrap}
+.spacer{flex:1;min-width:8px}
+
+.gpu{display:flex;align-items:center;gap:7px;font-size:10.5px;color:var(--ink-3);
+  font-family:var(--mono);white-space:nowrap}
+.gpu i{width:5px;height:5px;border-radius:50%;background:var(--amber);
+  box-shadow:0 0 7px rgba(224,169,85,.85)}
+
+.lang{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--line);
+  border-radius:var(--r)}
+.lang button{padding:3px 8px;font-size:10px;color:var(--ink-3);border-radius:1px}
+.lang button.on{background:rgba(224,169,85,.1);color:var(--amber)}
+.lang button:hover{color:var(--ink)}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:8px 15px;border:1px solid var(--line-2);border-radius:var(--r);
+  font-size:12px;color:var(--ink-2);
+  transition:border-color .2s var(--ease),color .2s var(--ease),background .2s var(--ease);
+}
+.btn:hover{color:var(--ink);border-color:rgba(232,214,190,.3);background:rgba(255,255,255,.02)}
+.iconbtn{width:34px;height:34px;display:grid;place-items:center;color:var(--ink-3);
+  border:1px solid transparent;border-radius:var(--r)}
+.iconbtn:hover{color:var(--ink);border-color:var(--line)}
+
+/* ── 骨架 ─────────────────────────────────────────────── */
+.workspace{display:grid;grid-template-columns:76px minmax(0,1fr) 352px;min-height:0}
+
+/* ── 模式栏 ───────────────────────────────────────────── */
+.mode-rail{
+  display:flex;flex-direction:column;gap:6px;padding:14px 9px;
+  border-right:1px solid var(--line);
+}
+.mode-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  padding:14px 4px;border-radius:var(--r);color:var(--ink-3);
+  font-size:10.5px;line-height:1.2;text-align:center;
+  border:1px solid transparent;
+  transition:color .25s var(--ease),background .25s var(--ease);
+}
+.mode-btn:hover{color:var(--ink-2);background:rgba(255,255,255,.018)}
+.mode-btn.on{
+  color:var(--amber);background:linear-gradient(180deg,rgba(224,169,85,.1),rgba(224,169,85,.02));
+  border-color:rgba(224,169,85,.22);
+  box-shadow:0 0 26px rgba(224,169,85,.09) inset;
+}
+.mode-btn .ic{width:19px;height:19px}
+.rail-foot{margin-top:auto;padding:10px 2px;font-family:var(--mono);font-size:9px;
+  color:var(--ink-3);letter-spacing:.1em;text-align:center;opacity:.55}
+
+/* ── 舞台 ─────────────────────────────────────────────── */
+.stage{display:flex;flex-direction:column;min-width:0;min-height:0}
+.stage-bar{
+  height:46px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;
+  border-bottom:1px solid var(--line);
+}
+.seg{display:inline-flex;gap:2px}
+.seg button{
+  padding:5px 13px;font-size:11.5px;color:var(--ink-3);border-radius:var(--r);
+  border:1px solid transparent;transition:all .2s var(--ease);
+}
+.seg button:hover{color:var(--ink-2)}
+.seg button.on{color:var(--amber);border-color:rgba(224,169,85,.24);
+  background:rgba(224,169,85,.07)}
+.stage-meta{font-family:var(--mono);font-size:10px;color:var(--ink-3);
+  letter-spacing:.04em;white-space:nowrap}
+
+.viewport{
+  position:relative;flex:1;min-height:0;display:grid;place-items:center;
+  padding:34px 44px;
+  background:radial-gradient(ellipse at 50% 45%,rgba(255,236,206,.035),transparent 62%);
+}
+
+/* 相纸装裱 */
+.plate{
+  position:relative;width:100%;max-width:960px;aspect-ratio:16/9;
+  padding:9px;background:#060504;border-radius:1px;
+  box-shadow:
+    0 1px 0 rgba(255,240,215,.06),
+    0 30px 70px -20px rgba(0,0,0,.95),
+    0 0 0 1px rgba(232,214,190,.06);
+}
+.plate-inner{position:relative;width:100%;height:100%;overflow:hidden;background:#0a0a0a}
+.scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+.wipe{
+  position:absolute;top:0;bottom:0;left:50%;width:1px;background:rgba(246,207,139,.85);
+  box-shadow:0 0 14px rgba(224,169,85,.7);cursor:ew-resize;
+}
+.wipe::after{
+  content:"";position:absolute;top:50%;left:50%;width:26px;height:26px;
+  transform:translate(-50%,-50%);border-radius:50%;
+  border:1px solid rgba(246,207,139,.8);background:rgba(10,8,6,.7);
+  backdrop-filter:blur(2px);
+}
+.badge{
+  position:absolute;top:12px;padding:4px 10px;font-family:var(--mono);
+  font-size:9.5px;letter-spacing:.14em;color:rgba(239,228,211,.9);
+  background:rgba(6,5,4,.62);border:1px solid rgba(232,214,190,.16);
+  border-radius:1px;backdrop-filter:blur(6px);
+}
+.badge.l{left:12px}
+.badge.r{right:12px;color:var(--amber-hi);border-color:rgba(224,169,85,.4)}
+
+/* ── 时间轴 ───────────────────────────────────────────── */
+.timeline{flex:none;padding:0 22px 12px}
+.track{
+  position:relative;height:34px;cursor:pointer;
+  background:
+    repeating-linear-gradient(90deg,rgba(232,214,190,.16) 0 1px,transparent 1px 16px)
+      left bottom/100% 11px no-repeat,
+    repeating-linear-gradient(90deg,rgba(232,214,190,.07) 0 1px,transparent 1px 4px)
+      left bottom/100% 5px no-repeat,
+    linear-gradient(180deg,rgba(255,255,255,.008),rgba(255,255,255,.024));
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+}
+.band{
+  position:absolute;top:9px;bottom:9px;left:0;width:100%;
+  background:rgba(224,169,85,.06);
+  border-left:1px solid rgba(224,169,85,.55);border-right:1px solid rgba(224,169,85,.55);
+}
+.head{
+  position:absolute;top:2px;bottom:2px;left:45%;width:1px;background:var(--amber-hi);
+  box-shadow:0 0 12px rgba(224,169,85,.75);
+}
+.head::before{
+  content:"";position:absolute;top:-1px;left:50%;transform:translateX(-50%) rotate(45deg);
+  width:7px;height:7px;background:var(--amber-hi);
+}
+.transport{display:flex;align-items:center;gap:12px;margin-top:11px}
+.tbtn{width:28px;height:28px;display:grid;place-items:center;color:var(--ink-3);
+  border-radius:var(--r)}
+.tbtn:hover{color:var(--amber);background:rgba(224,169,85,.07)}
+.tc{font-family:var(--mono);font-size:12px;color:var(--ink-3);letter-spacing:.04em}
+.tc b{color:var(--ink);font-weight:400;font-size:14px}
+.tips{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);letter-spacing:.06em}
+.tips kbd{font-family:inherit;padding:1px 4px;border:1px solid var(--line);
+  border-radius:2px;color:var(--ink-2)}
+
+/* ── 参数栏 ───────────────────────────────────────────── */
+.inspector{
+  display:flex;flex-direction:column;min-height:0;
+  border-left:1px solid var(--line);background:linear-gradient(180deg,var(--panel),var(--bg-2));
+}
+.insp-head{
+  height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 22px;border-bottom:1px solid var(--line);
+  font-family:var(--serif);font-size:13px;letter-spacing:.1em;color:var(--ink-2);
+}
+.insp-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.insp-body::-webkit-scrollbar{width:6px}
+.insp-body::-webkit-scrollbar-thumb{background:rgba(232,214,190,.12);border-radius:3px}
+
+.sec{padding:20px 22px 22px;border-bottom:1px solid var(--line)}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.sec-h span{font-family:var(--serif);font-size:12.5px;letter-spacing:.09em;color:var(--ink-2)}
+.sec-h em{font-style:normal;font-family:var(--mono);font-size:9.5px;
+  color:var(--ink-3);letter-spacing:.06em}
+
+/* 快门角刻度盘 */
+.dial-wrap{position:relative;display:grid;place-items:center;margin:-4px 0 8px}
+.dial{width:100%;max-width:230px;overflow:visible}
+.dial-track{fill:none;stroke:rgba(232,214,190,.11);stroke-width:1.5}
+.dial-fill{fill:none;stroke:var(--amber);stroke-width:2.5;stroke-linecap:round;
+  filter:drop-shadow(0 0 6px rgba(224,169,85,.5));
+  transition:stroke-dasharray .18s var(--ease)}
+.dial-tick{stroke:rgba(232,214,190,.2);stroke-width:1}
+.dial-tick.major{stroke:rgba(232,214,190,.42)}
+.dial-val{
+  position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);text-align:center;
+}
+.dial-val b{
+  font-family:var(--serif);font-size:44px;font-weight:400;color:var(--amber-hi);
+  line-height:1;letter-spacing:-.02em;display:block;
+}
+.dial-val b small{font-size:19px;color:var(--amber);vertical-align:super;margin-left:1px}
+.dial-val em{display:block;font-style:normal;font-family:var(--mono);font-size:9.5px;
+  color:var(--ink-3);margin-top:6px;letter-spacing:.1em}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:16px;background:none;
+  cursor:pointer;display:block;
+}
+input[type=range]::-webkit-slider-runnable-track{
+  height:1px;background:rgba(232,214,190,.18);
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:11px;height:11px;border-radius:50%;
+  background:var(--amber-hi);border:0;margin-top:-5px;
+  box-shadow:0 0 0 4px rgba(224,169,85,.13),0 0 10px rgba(224,169,85,.5);
+  transition:box-shadow .2s var(--ease);
+}
+input[type=range]:hover::-webkit-slider-thumb{
+  box-shadow:0 0 0 6px rgba(224,169,85,.18),0 0 14px rgba(224,169,85,.65);
+}
+.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:12px}
+.presets button{
+  padding:6px 2px;font-size:10.5px;color:var(--ink-3);
+  border:1px solid var(--line);border-radius:var(--r);
+  transition:all .2s var(--ease);
+}
+.presets button:hover{color:var(--ink-2);border-color:var(--line-2)}
+.presets button.on{color:var(--amber);border-color:rgba(224,169,85,.42);
+  background:rgba(224,169,85,.08)}
+
+.field{display:flex;align-items:baseline;justify-content:space-between;margin:16px 0 5px}
+.field label{font-size:11.5px;color:var(--ink-2);letter-spacing:.02em}
+.field .v{font-family:var(--mono);font-size:11px;color:var(--ink)}
+
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-top:18px;cursor:pointer}
+.switch div span{display:block;font-size:11.5px;color:var(--ink-2)}
+.switch div small{display:block;font-size:10px;color:var(--ink-3);margin-top:2px}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch i{
+  width:34px;height:18px;border-radius:9px;background:rgba(232,214,190,.09);
+  border:1px solid var(--line);position:relative;flex:none;transition:all .25s var(--ease);
+}
+.switch i::after{
+  content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;
+  background:var(--ink-3);transition:all .25s var(--ease);
+}
+.switch input:checked + i{background:rgba(224,169,85,.2);border-color:rgba(224,169,85,.5)}
+.switch input:checked + i::after{left:17px;background:var(--amber-hi);
+  box-shadow:0 0 8px rgba(224,169,85,.7)}
+
+select{
+  appearance:none;background:transparent;border:0;border-bottom:1px solid var(--line-2);
+  padding:4px 18px 4px 0;font-size:11.5px;color:var(--ink);cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5' fill='none' stroke='%237a6b59'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 2px center;
+}
+select option{background:#171310;color:var(--ink)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.pair > div label{display:block;font-size:10.5px;color:var(--ink-3);margin-bottom:5px}
+.pair select{width:100%}
+
+.insp-foot{flex:none;padding:16px 22px 18px;border-top:1px solid var(--line);
+  background:rgba(0,0,0,.25)}
+.state{display:flex;align-items:baseline;justify-content:space-between;
+  font-family:var(--mono);font-size:10px;color:var(--ink-3);letter-spacing:.08em;
+  margin-bottom:11px}
+.state b{color:var(--ink-2);font-weight:400}
+.render{
+  display:flex;align-items:center;justify-content:center;gap:9px;width:100%;
+  padding:13px;border-radius:var(--r);border:0;
+  background:linear-gradient(180deg,var(--amber-hi),var(--amber));
+  color:#1a1105;font-size:12.5px;font-weight:600;letter-spacing:.08em;
+  box-shadow:0 0 26px rgba(224,169,85,.22),0 1px 0 rgba(255,255,255,.4) inset;
+  transition:filter .2s var(--ease),box-shadow .2s var(--ease);
+}
+.render:hover{filter:brightness(1.08);box-shadow:0 0 38px rgba(224,169,85,.34),
+  0 1px 0 rgba(255,255,255,.45) inset}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="aperture" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.2" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="9.2"/>
+        <path d="M12 2.8 L16.4 10.4 M21 12 L12.6 12 M17.6 20 L13.2 12.4
+                 M6.4 20 L10.8 12.4 M3 12 L11.4 12 M6.4 4 L10.8 11.6"/>
+      </svg>
+      <div><b>CineBlur</b><small>Optical Motion</small></div>
+    </div>
+    <div class="chip">
+      <b>demo_src.mp4</b><span>1280×720 · 30.00 fps</span>
+    </div>
+    <div class="spacer"></div>
+    <button class="iconbtn" aria-label="设置">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3
+                 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5
+                 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8
+                 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1
+                 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9
+                 a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5
+                 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9
+                 a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg>
+    </button>
+    <div class="lang"><button class="on">中</button><button>EN</button></div>
+    <div class="gpu"><i></i>RTX 5060 Laptop · CUDA</div>
+    <button class="btn">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      打开视频
+    </button>
+  </header>
+
+  <main class="workspace">
+    <nav class="mode-rail">
+      <button class="mode-btn on">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M3 12h4M8 9h8M18 12h3"/>
+          <circle cx="12" cy="12" r="2.2"/></svg>
+        运动模糊
+      </button>
+      <button class="mode-btn">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 4.5-8 4.5-8-4.5z"/>
+          <path d="M4 12l8 4.5 8-4.5"/><path d="M4 16.5L12 21l8-4.5"/></svg>
+        深度图
+      </button>
+      <div class="rail-foot">v0.9</div>
+    </nav>
+
+    <section class="stage">
+      <div class="stage-bar">
+        <div class="seg">
+          <button class="on">对比</button><button>原片</button><button>模糊</button>
+        </div>
+        <div class="spacer"></div>
+        <span class="stage-meta">预览 72 ms · 540p</span>
+      </div>
+
+      <div class="viewport">
+        <figure class="plate">
+          <div class="plate-inner" id="plate">
+<svg class="scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+                 <defs>
+                   <pattern id="diag" width="46" height="46" patternUnits="userSpaceOnUse"
+                            patternTransform="rotate(45)">
+                     <rect width="46" height="46" fill="#d6d2c9"/>
+                     <rect width="23" height="46" fill="#b6b1a6"/>
+                     <line x1="23" y1="0" x2="23" y2="46" stroke="#8b867c" stroke-width="2"/>
+                   </pattern>
+                   <filter id="mb" x="-60%" y="-40%" width="220%" height="180%">
+                     <feGaussianBlur stdDeviation="34 0"/>
+                   </filter>
+                   <clipPath id="clipSharp"><rect id="clipL" x="0" y="0" width="800" height="900"/></clipPath>
+                   <clipPath id="clipBlur"><rect id="clipR" x="800" y="0" width="800" height="900"/></clipPath>
+                 </defs>
+                 <rect width="1600" height="900" fill="url(#diag)"/>
+                 <g clip-path="url(#clipSharp)">
+                   <circle cx="470" cy="400" r="48" fill="#4fbf8f"/>
+                   <circle cx="860" cy="430" r="66" fill="#4f6ef7"/>
+                   <circle cx="950" cy="610" r="27" fill="#17171a"/>
+                   <rect x="700" y="660" width="430" height="36" rx="6" fill="#f2e34c"/>
+                 </g>
+                 <g clip-path="url(#clipBlur)" filter="url(#mb)">
+                   <circle cx="470" cy="400" r="48" fill="#4fbf8f"/>
+                   <circle cx="860" cy="430" r="66" fill="#4f6ef7"/>
+                   <circle cx="950" cy="610" r="27" fill="#17171a"/>
+                   <rect x="700" y="660" width="430" height="36" rx="6" fill="#f2e34c"/>
+                 </g>
+               </svg>
+
+            <div class="wipe" id="wipe"></div>
+            <span class="badge l">原始</span>
+            <span class="badge r">模糊 · 180°</span>
+          </div>
+        </figure>
+      </div>
+
+      <div class="timeline">
+        <div class="track" id="track">
+          <div class="band"></div>
+          <div class="head" id="head"></div>
+        </div>
+        <div class="transport">
+          <button class="tbtn" aria-label="上一帧">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <button class="tbtn" aria-label="下一帧">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+          <span class="tc"><b id="tcur">00:00.45</b> / 00:01.00</span>
+          <div class="spacer"></div>
+          <span class="tips"><kbd>←</kbd><kbd>→</kbd> 逐帧 · <kbd>⇧</kbd> 5 帧 · <kbd>空格</kbd> 连续预览</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="inspector">
+      <div class="insp-head"><span>参数</span>
+        <span style="font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--ink-3)">BLUR</span>
+      </div>
+
+      <div class="insp-body">
+        <div class="sec">
+          <div class="sec-h"><span>快门角</span><em>电影标准</em></div>
+          <div class="dial-wrap">
+            <svg class="dial" viewBox="0 0 180 104" id="dial">
+              <path class="dial-track" d="M20 92 A70 70 0 0 1 160 92"/>
+              <path class="dial-fill" id="dialFill" d="M20 92 A70 70 0 0 1 160 92"
+                    stroke-dasharray="110 220"/>
+              <g id="dialTicks"></g>
+            </svg>
+            <div class="dial-val">
+              <b id="angleV">180<small>°</small></b>
+              <em>曝光 16.7 ms</em>
+            </div>
+          </div>
+          <input type="range" id="angle" min="0" max="360" step="5" value="180">
+          <div class="presets" id="presets">
+            <button data-a="90">硬朗</button>
+            <button data-a="180" class="on">电影</button>
+            <button data-a="270">长拖影</button>
+            <button data-a="360">全曝</button>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h"><span>积分</span><em>相对耗时 ×1.0</em></div>
+          <div class="field"><label>子帧采样</label><div class="v" id="samplesV">16</div></div>
+          <input type="range" id="samples" min="4" max="32" step="2" value="16">
+          <div class="field"><label>轨迹强度</label><div class="v" id="strengthV">100%</div></div>
+          <input type="range" id="strength" min="20" max="100" step="5" value="100">
+          <div class="field"><label>抗伪影</label><div class="v" id="photoV">0%</div></div>
+          <input type="range" id="photo" min="0" max="100" step="10" value="0">
+          <label class="switch">
+            <div><span>双三次重采样</span><small>拖影更柔，约慢一倍</small></div>
+            <input type="checkbox"><i></i>
+          </label>
+        </div>
+
+        <div class="sec" style="border-bottom:0">
+          <div class="sec-h"><span>引擎</span><em>RAFT</em></div>
+          <div class="field" style="margin-top:0"><label>光流精度</label>
+            <select><option>极速</option><option>快速</option>
+              <option selected>标准</option><option>精细</option></select>
+          </div>
+          <div class="pair">
+            <div><label>处理分辨率</label>
+              <select><option selected>原始</option><option>4K</option>
+                <option>1080p</option><option>720p</option></select></div>
+            <div><label>编码器</label>
+              <select><option selected>自动</option><option>H.264 NVENC</option>
+                <option>HEVC NVENC</option><option>libx264</option></select></div>
+          </div>
+          <label class="switch">
+            <div><span>双向校验</span><small>遮挡边界更稳，慢一倍</small></div>
+            <input type="checkbox"><i></i>
+          </label>
+        </div>
+      </div>
+
+      <div class="insp-foot">
+        <div class="state"><span>就绪</span><b>00:01.00 · 30 帧</b></div>
+        <button class="render">开始渲染</button>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+/* 弧形刻度 */
+(function(){
+  const g=document.getElementById('dialTicks');
+  const cx=90, cy=92;
+  for(let i=0;i<=24;i++){
+    const t=i/24, a=Math.PI+t*Math.PI;
+    const major=i%6===0;
+    const r1=major?56:62, r2=69;
+    const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+    l.setAttribute('x1',cx+Math.cos(a)*r1); l.setAttribute('y1',cy+Math.sin(a)*r1);
+    l.setAttribute('x2',cx+Math.cos(a)*r2); l.setAttribute('y2',cy+Math.sin(a)*r2);
+    l.setAttribute('class','dial-tick'+(major?' major':''));
+    g.appendChild(l);
+  }
+})();
+
+/* 快门角联动 */
+const ARC=Math.PI*70;               // 半圆弧长 ≈ 219.9
+const angle=document.getElementById('angle');
+const fill=document.getElementById('dialFill');
+const angleV=document.getElementById('angleV');
+const presets=[...document.querySelectorAll('#presets button')];
+function setAngle(v){
+  angle.value=v;
+  angleV.innerHTML=v+'<small>°</small>';
+  fill.setAttribute('stroke-dasharray',(ARC*v/360).toFixed(1)+' '+ARC.toFixed(1));
+  presets.forEach(b=>b.classList.toggle('on',+b.dataset.a===+v));
+}
+angle.addEventListener('input',e=>setAngle(e.target.value));
+presets.forEach(b=>b.addEventListener('click',()=>setAngle(b.dataset.a)));
+setAngle(180);
+
+/* 滑杆读数 */
+[['samples','samplesV',v=>v],['strength','strengthV',v=>v+'%'],
+ ['photo','photoV',v=>v+'%']].forEach(([id,out,fmt])=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input',()=>document.getElementById(out).textContent=fmt(el.value));
+});
+
+/* 视图切换 */
+document.querySelectorAll('.seg button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.seg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+  });
+});
+
+/* 对比滑杆 */
+(function(){
+  const plate=document.getElementById('plate'), wipe=document.getElementById('wipe'),
+        clipL=document.getElementById('clipL'), clipR=document.getElementById('clipR');
+  let drag=false;
+  const move=e=>{
+    if(!drag) return;
+    const r=plate.getBoundingClientRect();
+    const p=Math.min(100,Math.max(0,((e.clientX-r.left)/r.width)*100));
+    wipe.style.left=p+'%';
+    const x=p*16;
+    clipL.setAttribute('width',x);
+    clipR.setAttribute('x',x);
+    clipR.setAttribute('width',1600-x);
+  };
+  wipe.addEventListener('pointerdown',e=>{drag=true;wipe.setPointerCapture(e.pointerId)});
+  wipe.addEventListener('pointermove',move);
+  wipe.addEventListener('pointerup',()=>drag=false);
+})();
+
+/* 时间轴 */
+(function(){
+  const track=document.getElementById('track');
+  const head=document.getElementById('head');
+  track.addEventListener('click',e=>{
+    const r=track.getBoundingClientRect();
+    const p=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+    head.style.left=(p*100)+'%';
+    document.getElementById('tcur').textContent='00:0'+(p).toFixed(2).padStart(4,'0');
+  });
+})();
+</script>
+</body>
+</html>

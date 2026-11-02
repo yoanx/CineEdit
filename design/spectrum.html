@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CineBlur · 光谱</title>
+<style>
+/* ═══════════════════════════════════════════════════════
+   方向 C — 光谱 Spectrum
+   概念：直接从"线性光积分"这条公式出发。界面是深冷的
+   黑蓝，唯一的光谱色只出现在两处——子帧采样带，和正在
+   被拖动的那根快门滑轨。其余一切退到近乎无色。
+   ═══════════════════════════════════════════════════════ */
+:root{
+  --bg:#07080d;
+  --panel:#0b0e16;
+  --panel-2:#10141f;
+  --line:rgba(150,175,255,.10);
+  --line-2:rgba(150,175,255,.2);
+  --ink:#e9edf9;
+  --ink-2:#9aa5c0;
+  --ink-3:#626c86;
+  --a1:#5b8cff;
+  --a2:#a97bff;
+  --a3:#ff8fb8;
+  --spec:linear-gradient(90deg,#5b8cff,#8f86ff 34%,#a97bff 58%,#e08ad6 78%,#ff8fb8);
+  --ease:cubic-bezier(.22,1,.36,1);
+  --r:12px;
+  --r-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font:13px/1.5 "Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif;
+  color:var(--ink);overflow:hidden;user-select:none;-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1100px 600px at 8% -18%,rgba(91,140,255,.10),transparent 60%),
+    radial-gradient(900px 520px at 100% 112%,rgba(169,123,255,.075),transparent 62%),
+    var(--bg);
+}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer;background:none;border:0}
+:focus-visible{outline:1px solid var(--a1);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+svg.ic{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+.app{display:grid;grid-template-rows:64px 1fr;height:100vh}
+
+/* ── 顶栏 ─────────────────────────────────────────────── */
+.topbar{
+  position:relative;display:flex;align-items:center;gap:16px;padding:0 22px;
+  border-bottom:1px solid var(--line);
+  background:rgba(8,10,17,.72);backdrop-filter:blur(18px);
+}
+.topbar::after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:var(--spec);opacity:.32;
+}
+.brand{display:flex;align-items:center;gap:11px;flex:none}
+.orb{
+  width:26px;height:26px;border-radius:50%;flex:none;position:relative;
+  background:conic-gradient(from 210deg,#5b8cff,#a97bff,#ff8fb8,#5b8cff);
+  -webkit-mask:radial-gradient(circle,transparent 42%,#000 45%);
+  mask:radial-gradient(circle,transparent 42%,#000 45%);
+  filter:saturate(.85);
+}
+.brand b{
+  font-family:Bahnschrift,"Segoe UI Variable Display",sans-serif;
+  font-size:15px;font-weight:400;letter-spacing:.09em;display:block;line-height:1.1;
+}
+.brand small{
+  display:block;font-size:9px;letter-spacing:.2em;color:var(--ink-3);margin-top:2px;
+  font-family:"Cascadia Mono",Consolas,monospace;
+}
+.chip{
+  display:flex;align-items:center;gap:10px;min-width:0;padding:6px 12px;
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  background:rgba(255,255,255,.022);font-size:11.5px;color:var(--ink-2);
+}
+.chip b{font-weight:450;color:var(--ink);max-width:25vw;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.chip span{font-size:10.5px;color:var(--ink-3);white-space:nowrap;
+  font-family:"Cascadia Mono",Consolas,monospace}
+.spacer{flex:1;min-width:8px}
+.gpu{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--ink-3);
+  letter-spacing:.05em;white-space:nowrap;font-family:"Cascadia Mono",Consolas,monospace}
+.gpu i{width:6px;height:6px;border-radius:50%;background:#6ee7b7;
+  box-shadow:0 0 8px rgba(110,231,183,.7)}
+.lang{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--line);
+  border-radius:7px;background:rgba(255,255,255,.02)}
+.lang button{padding:3px 8px;font-size:10px;color:var(--ink-3);border-radius:5px}
+.lang button.on{background:rgba(150,175,255,.13);color:var(--ink)}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:8px 15px;border:1px solid var(--line-2);border-radius:var(--r-sm);
+  font-size:12px;color:var(--ink-2);background:rgba(255,255,255,.028);
+  transition:all .2s var(--ease);
+}
+.btn:hover{color:var(--ink);background:rgba(255,255,255,.06);border-color:rgba(150,175,255,.32)}
+.iconbtn{width:34px;height:34px;display:grid;place-items:center;color:var(--ink-3);
+  border:1px solid transparent;border-radius:var(--r-sm)}
+.iconbtn:hover{color:var(--ink);border-color:var(--line);background:rgba(255,255,255,.03)}
+
+/* ── 骨架 ─────────────────────────────────────────────── */
+.workspace{display:grid;grid-template-columns:72px minmax(0,1fr) 356px;min-height:0}
+
+/* ── 模式栏 ───────────────────────────────────────────── */
+.mode-rail{
+  display:flex;flex-direction:column;gap:8px;padding:14px 9px;
+  border-right:1px solid var(--line);
+}
+.mode-btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;
+  padding:14px 3px;border-radius:var(--r-sm);color:var(--ink-3);font-size:10.5px;
+  line-height:1.2;text-align:center;border:1px solid transparent;
+  transition:all .22s var(--ease);
+}
+.mode-btn:hover{color:var(--ink-2);background:rgba(255,255,255,.028)}
+.mode-btn.on{
+  color:var(--ink);background:rgba(150,175,255,.07);border-color:rgba(150,175,255,.2);
+  box-shadow:0 0 30px rgba(91,140,255,.08) inset;
+}
+.mode-btn.on .ic{color:var(--a1);filter:drop-shadow(0 0 6px rgba(91,140,255,.6))}
+.mode-btn .ic{width:19px;height:19px}
+.rail-foot{margin-top:auto;padding:8px 0;text-align:center;font-size:8.5px;
+  letter-spacing:.16em;color:var(--ink-3);opacity:.6;
+  font-family:"Cascadia Mono",Consolas,monospace}
+
+/* ── 舞台 ─────────────────────────────────────────────── */
+.stage{display:flex;flex-direction:column;min-width:0;min-height:0}
+.stage-bar{
+  height:46px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;
+  border-bottom:1px solid var(--line);
+}
+.seg{display:inline-flex;gap:2px;padding:2px;border-radius:9px;background:rgba(255,255,255,.035)}
+.seg button{padding:5px 13px;font-size:11.5px;color:var(--ink-3);border-radius:7px;
+  transition:all .18s var(--ease)}
+.seg button:hover{color:var(--ink-2)}
+.seg button.on{background:rgba(150,175,255,.14);color:var(--ink);
+  box-shadow:0 1px 0 rgba(255,255,255,.06) inset}
+.stage-meta{font-size:10px;color:var(--ink-3);letter-spacing:.05em;white-space:nowrap;
+  font-family:"Cascadia Mono",Consolas,monospace}
+
+.viewport{
+  position:relative;flex:1;min-height:0;display:grid;place-items:center;padding:30px 40px;
+}
+.plate{
+  position:relative;width:100%;max-width:960px;aspect-ratio:16/9;
+  border-radius:10px;padding:1px;overflow:hidden;
+  background:linear-gradient(140deg,rgba(150,175,255,.34),rgba(169,123,255,.14) 45%,
+    rgba(255,143,184,.22));
+  box-shadow:0 40px 80px -30px rgba(0,0,0,.9),0 0 60px -20px rgba(91,140,255,.3);
+}
+.plate-inner{position:relative;width:100%;height:100%;overflow:hidden;border-radius:9px;
+  background:#0a0a0a}
+.scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+.wipe{
+  position:absolute;top:0;bottom:0;left:50%;width:1px;cursor:ew-resize;
+  background:rgba(255,255,255,.9);box-shadow:0 0 14px rgba(150,175,255,.9);
+}
+.wipe::after{
+  content:"";position:absolute;top:50%;left:50%;width:24px;height:24px;
+  transform:translate(-50%,-50%);border-radius:50%;
+  background:rgba(10,13,22,.72);border:1px solid rgba(180,200,255,.75);
+  backdrop-filter:blur(4px);
+}
+.badge{
+  position:absolute;top:12px;padding:4px 10px;font-size:9.5px;letter-spacing:.1em;
+  color:rgba(233,237,249,.92);background:rgba(8,10,17,.66);
+  border:1px solid rgba(150,175,255,.22);border-radius:6px;backdrop-filter:blur(8px);
+  font-family:"Cascadia Mono",Consolas,monospace;
+}
+.badge.l{left:12px}
+.badge.r{right:12px;border-color:rgba(255,143,184,.4);color:#ffc4d8}
+
+/* ── 时间轴：子帧光谱带 ───────────────────────────────── */
+.timeline{flex:none;padding:0 22px 12px}
+.track{
+  position:relative;height:42px;cursor:pointer;display:flex;align-items:center;
+  gap:3px;padding:0 1px;border-radius:6px;
+  background:linear-gradient(180deg,rgba(255,255,255,.012),transparent);
+}
+.sliver{
+  flex:1;height:18px;border-radius:2px;
+  transition:height .2s var(--ease),opacity .2s var(--ease);
+}
+.track:hover .sliver{height:24px}
+.band{
+  position:absolute;top:4px;bottom:4px;left:0;width:100%;border-radius:6px;
+  border:1px solid rgba(150,175,255,.22);pointer-events:none;
+}
+.head{
+  position:absolute;top:0;bottom:0;left:45%;width:1px;background:#fff;
+  box-shadow:0 0 14px rgba(150,175,255,.95);
+}
+.head::before{
+  content:"";position:absolute;top:-2px;left:50%;transform:translateX(-50%);
+  width:9px;height:9px;border-radius:50%;background:#fff;
+  box-shadow:0 0 12px rgba(150,175,255,.9);
+}
+.transport{display:flex;align-items:center;gap:12px;margin-top:12px}
+.tbtn{width:30px;height:28px;display:grid;place-items:center;color:var(--ink-3);
+  border-radius:7px;transition:all .18s var(--ease)}
+.tbtn:hover{color:var(--ink);background:rgba(255,255,255,.05)}
+.tc{font-size:12px;color:var(--ink-3);letter-spacing:.04em;
+  font-family:"Cascadia Mono",Consolas,monospace}
+.tc b{color:var(--ink);font-weight:450;font-size:14px}
+.tips{font-size:9.5px;color:var(--ink-3);letter-spacing:.05em;
+  font-family:"Cascadia Mono",Consolas,monospace}
+.tips kbd{font-family:inherit;padding:1px 4px;border:1px solid var(--line);
+  border-radius:4px;color:var(--ink-2)}
+
+/* ── 参数栏 ───────────────────────────────────────────── */
+.inspector{
+  display:flex;flex-direction:column;min-height:0;
+  border-left:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(16,20,31,.86),rgba(9,11,18,.94));
+  backdrop-filter:blur(20px);
+}
+.insp-head{
+  height:46px;flex:none;display:flex;align-items:center;justify-content:space-between;
+  padding:0 22px;border-bottom:1px solid var(--line);
+  font-size:11px;letter-spacing:.14em;color:var(--ink-2);
+  font-family:"Cascadia Mono",Consolas,monospace;
+}
+.insp-body{flex:1;min-height:0;overflow-y:auto}
+.insp-body::-webkit-scrollbar{width:6px}
+.insp-body::-webkit-scrollbar-thumb{background:rgba(150,175,255,.16);border-radius:3px}
+
+.sec{padding:20px 22px 22px;border-bottom:1px solid var(--line)}
+.sec-h{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+.sec-h span{font-size:11px;letter-spacing:.14em;color:var(--ink-2);
+  font-family:"Cascadia Mono",Consolas,monospace}
+.sec-h em{font-style:normal;font-size:9.5px;color:var(--ink-3);letter-spacing:.06em;
+  font-family:"Cascadia Mono",Consolas,monospace}
+
+/* 角度：大数字 + 光谱滑轨 */
+.angle{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:6px}
+.angle b{
+  font-family:Bahnschrift,"Segoe UI Variable Display",sans-serif;
+  font-size:52px;font-weight:300;line-height:.95;letter-spacing:-.02em;
+  background:linear-gradient(180deg,#f2f5ff,#a9b8de);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.angle b small{font-size:22px;-webkit-text-fill-color:var(--ink-3);margin-left:2px}
+.angle em{font-style:normal;font-size:9.5px;color:var(--ink-3);letter-spacing:.08em;
+  padding-bottom:8px;font-family:"Cascadia Mono",Consolas,monospace}
+.spec-track{position:relative;height:4px;border-radius:2px;margin:14px 0 4px;
+  background:rgba(255,255,255,.07)}
+.spec-fill{position:absolute;inset:0;width:50%;border-radius:2px;background:var(--spec);
+  box-shadow:0 0 14px rgba(140,150,255,.5);transition:width .18s var(--ease)}
+.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:12px}
+.presets button{padding:6px 2px;font-size:10.5px;color:var(--ink-3);
+  border:1px solid var(--line);border-radius:7px;transition:all .18s var(--ease)}
+.presets button:hover{color:var(--ink-2);border-color:var(--line-2)}
+.presets button.on{color:var(--ink);border-color:rgba(150,175,255,.45);
+  background:rgba(150,175,255,.1)}
+
+.field{display:flex;align-items:baseline;justify-content:space-between;margin:16px 0 6px}
+.field label{font-size:11.5px;color:var(--ink-2)}
+.field .v{font-size:11px;color:var(--ink);
+  font-family:"Cascadia Mono",Consolas,monospace}
+
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:16px;
+  background:none;cursor:pointer;display:block}
+input[type=range]::-webkit-slider-runnable-track{height:2px;border-radius:1px;
+  background:rgba(255,255,255,.12)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:12px;height:12px;border-radius:50%;margin-top:-5px;
+  background:#eef2ff;border:0;
+  box-shadow:0 0 0 4px rgba(150,175,255,.14),0 0 12px rgba(150,175,255,.6);
+  transition:box-shadow .2s var(--ease);
+}
+input[type=range]:hover::-webkit-slider-thumb{
+  box-shadow:0 0 0 6px rgba(150,175,255,.2),0 0 18px rgba(150,175,255,.8)}
+
+.switch{display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin-top:18px;cursor:pointer}
+.switch div span{display:block;font-size:11.5px;color:var(--ink-2)}
+.switch div small{display:block;font-size:10px;color:var(--ink-3);margin-top:2px}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch i{position:relative;width:34px;height:19px;border-radius:10px;flex:none;
+  background:rgba(255,255,255,.08);border:1px solid var(--line);
+  transition:all .22s var(--ease)}
+.switch i::after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;
+  border-radius:50%;background:var(--ink-3);transition:all .22s var(--ease)}
+.switch input:checked + i{background:rgba(91,140,255,.3);border-color:rgba(150,175,255,.5)}
+.switch input:checked + i::after{left:17px;background:#fff;
+  box-shadow:0 0 10px rgba(150,175,255,.9)}
+
+select{
+  appearance:none;width:100%;padding:6px 24px 6px 10px;font-size:11.5px;
+  border:1px solid var(--line);border-radius:7px;color:var(--ink);cursor:pointer;
+  background:rgba(255,255,255,.03);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5' fill='none' stroke='%23626c86'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 9px center;
+}
+select option{background:#10141f;color:var(--ink)}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.pair label{display:block;font-size:10px;color:var(--ink-3);margin-bottom:5px}
+
+.insp-foot{flex:none;padding:16px 22px 18px;border-top:1px solid var(--line);
+  background:rgba(0,0,0,.28)}
+.state{display:flex;align-items:baseline;justify-content:space-between;font-size:9.5px;
+  color:var(--ink-3);letter-spacing:.1em;margin-bottom:11px;
+  font-family:"Cascadia Mono",Consolas,monospace}
+.state b{color:var(--ink-2);font-weight:450}
+.render{
+  position:relative;width:100%;padding:13px;border-radius:10px;border:1px solid transparent;
+  background:linear-gradient(180deg,#eef3ff,#c3d2f7);color:#0a0e1a;
+  font-size:12.5px;font-weight:600;letter-spacing:.06em;
+  box-shadow:0 10px 30px -12px rgba(120,160,255,.8),0 1px 0 rgba(255,255,255,.8) inset;
+  transition:filter .18s var(--ease),box-shadow .18s var(--ease);
+}
+.render:hover{filter:brightness(1.06);
+  box-shadow:0 14px 38px -12px rgba(120,160,255,.95),0 1px 0 rgba(255,255,255,.9) inset}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="orb"></span>
+      <div><b>CINEBLUR</b><small>OPTICAL MOTION</small></div>
+    </div>
+    <div class="chip"><b>demo_src.mp4</b><span>1280×720 · 30.00p</span></div>
+    <div class="spacer"></div>
+    <button class="iconbtn" aria-label="设置">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1
+                 M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg>
+    </button>
+    <div class="lang"><button class="on">中</button><button>EN</button></div>
+    <div class="gpu"><i></i>RTX 5060 · CUDA</div>
+    <button class="btn">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      打开视频
+    </button>
+  </header>
+
+  <main class="workspace">
+    <nav class="mode-rail">
+      <button class="mode-btn on">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M3 12h4M8 9h8M18 12h3"/>
+          <circle cx="12" cy="12" r="2.2"/></svg>
+        运动模糊
+      </button>
+      <button class="mode-btn">
+        <svg class="ic" viewBox="0 0 24 24"><path d="M12 3l8 4.5-8 4.5-8-4.5z"/>
+          <path d="M4 12l8 4.5 8-4.5"/><path d="M4 16.5L12 21l8-4.5"/></svg>
+        深度图
+      </button>
+      <div class="rail-foot">V 0.9</div>
+    </nav>
+
+    <section class="stage">
+      <div class="stage-bar">
+        <div class="seg"><button class="on">对比</button><button>原片</button><button>模糊</button></div>
+        <div class="spacer"></div>
+        <span class="stage-meta">PREVIEW 72ms · 540p</span>
+      </div>
+
+      <div class="viewport">
+        <figure class="plate">
+          <div class="plate-inner" id="plate">
+<svg class="scene" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+                 <defs>
+                   <pattern id="diag" width="46" height="46" patternUnits="userSpaceOnUse"
+                            patternTransform="rotate(45)">
+                     <rect width="46" height="46" fill="#d6d2c9"/>
+                     <rect width="23" height="46" fill="#b6b1a6"/>
+                     <line x1="23" y1="0" x2="23" y2="46" stroke="#8b867c" stroke-width="2"/>
+                   </pattern>
+                   <filter id="mb" x="-60%" y="-40%" width="220%" height="180%">
+                     <feGaussianBlur stdDeviation="34 0"/>
+                   </filter>
+                   <clipPath id="clipSharp"><rect id="clipL" x="0" y="0" width="800" height="900"/></clipPath>
+                   <clipPath id="clipBlur"><rect id="clipR" x="800" y="0" width="800" height="900"/></clipPath>
+                 </defs>
+                 <rect width="1600" height="900" fill="url(#diag)"/>
+                 <g clip-path="url(#clipSharp)">
+                   <circle cx="470" cy="400" r="48" fill="#4fbf8f"/>
+                   <circle cx="860" cy="430" r="66" fill="#4f6ef7"/>
+                   <circle cx="950" cy="610" r="27" fill="#17171a"/>
+                   <rect x="700" y="660" width="430" height="36" rx="6" fill="#f2e34c"/>
+                 </g>
+                 <g clip-path="url(#clipBlur)" filter="url(#mb)">
+                   <circle cx="470" cy="400" r="48" fill="#4fbf8f"/>
+                   <circle cx="860" cy="430" r="66" fill="#4f6ef7"/>
+                   <circle cx="950" cy="610" r="27" fill="#17171a"/>
+                   <rect x="700" y="660" width="430" height="36" rx="6" fill="#f2e34c"/>
+                 </g>
+               </svg>
+
+            <div class="wipe" id="wipe"></div>
+            <span class="badge l">原始</span>
+            <span class="badge r">模糊 · 180°</span>
+          </div>
+        </figure>
+      </div>
+
+      <div class="timeline">
+        <div class="track" id="track">
+          <div class="band"></div>
+          <div class="head" id="head"></div>
+        </div>
+        <div class="transport">
+          <button class="tbtn" aria-label="上一帧">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <button class="tbtn" aria-label="下一帧">
+            <svg class="ic" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+          <span class="tc"><b id="tcur">00:00.45</b> / 00:01.00</span>
+          <div class="spacer"></div>
+          <span class="tips"><kbd>←</kbd><kbd>→</kbd> 逐帧 · <kbd>⇧</kbd> 5 帧 · <kbd>空格</kbd> 连续预览</span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="inspector">
+      <div class="insp-head"><span>参数</span><span>BLUR</span></div>
+
+      <div class="insp-body">
+        <div class="sec">
+          <div class="sec-h"><span>快门角</span><em>电影标准</em></div>
+          <div class="angle">
+            <b id="angleV">180<small>°</small></b>
+            <em>曝光 16.7 ms</em>
+          </div>
+          <input type="range" id="angle" min="0" max="360" step="5" value="180">
+          <div class="spec-track"><div class="spec-fill" id="specFill"></div></div>
+          <div class="presets" id="presets">
+            <button data-a="90">硬朗</button>
+            <button data-a="180" class="on">电影</button>
+            <button data-a="270">长拖影</button>
+            <button data-a="360">全曝</button>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h"><span>积分</span><em>相对耗时 ×1.0</em></div>
+          <div class="field"><label>子帧采样</label><div class="v" id="samplesV">16</div></div>
+          <input type="range" id="samples" min="4" max="32" step="2" value="16">
+          <div class="field"><label>轨迹强度</label><div class="v" id="strengthV">100%</div></div>
+          <input type="range" id="strength" min="20" max="100" step="5" value="100">
+          <div class="field"><label>抗伪影</label><div class="v" id="photoV">0%</div></div>
+          <input type="range" id="photo" min="0" max="100" step="10" value="0">
+          <label class="switch">
+            <div><span>双三次重采样</span><small>拖影更柔，约慢一倍</small></div>
+            <input type="checkbox"><i></i>
+          </label>
+        </div>
+
+        <div class="sec" style="border-bottom:0">
+          <div class="sec-h"><span>引擎</span><em>RAFT</em></div>
+          <div class="field" style="margin-top:0"><label>光流精度</label></div>
+          <select><option>极速 · raft_small</option><option>快速 · raft_small</option>
+            <option selected>标准 · raft_large</option><option>精细 · raft_large</option></select>
+          <div class="pair">
+            <div><label>处理分辨率</label>
+              <select><option selected>原始</option><option>4K</option>
+                <option>1080p</option><option>720p</option></select></div>
+            <div><label>编码器</label>
+              <select><option selected>自动</option><option>H.264 NVENC</option>
+                <option>HEVC NVENC</option><option>libx264</option></select></div>
+          </div>
+          <label class="switch">
+            <div><span>双向校验</span><small>遮挡边界更稳，慢一倍</small></div>
+            <input type="checkbox"><i></i>
+          </label>
+        </div>
+      </div>
+
+      <div class="insp-foot">
+        <div class="state"><span>就绪</span><b>00:01.00 · 30 帧</b></div>
+        <button class="render">开始渲染</button>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+/* 子帧光谱带：16 个采样，色相沿快门区间推进 */
+(function(){
+  const track=document.getElementById('track');
+  const band=document.querySelector('.band');
+  const N=16;
+  for(let i=0;i<N;i++){
+    const d=document.createElement('div');
+    d.className='sliver';
+    const h=222 + (i/(N-1))*118;             // 蓝 → 紫 → 粉
+    const s=48 + Math.sin(i/(N-1)*Math.PI)*14;
+    d.style.background=`linear-gradient(180deg,
+      hsl(${h} ${s}% 62% / .9), hsl(${h} ${s}% 42% / .72))`;
+    d.style.boxShadow=`0 0 8px hsl(${h} 55% 50% / .22)`;
+    track.insertBefore(d,band);
+  }
+})();
+
+const angle=document.getElementById('angle');
+const specFill=document.getElementById('specFill');
+const angleV=document.getElementById('angleV');
+const presets=[...document.querySelectorAll('#presets button')];
+function setAngle(v){
+  angle.value=v;
+  angleV.innerHTML=v+'<small>°</small>';
+  specFill.style.width=(v/360*100)+'%';
+  presets.forEach(b=>b.classList.toggle('on',+b.dataset.a===+v));
+}
+angle.addEventListener('input',e=>setAngle(e.target.value));
+presets.forEach(b=>b.addEventListener('click',()=>setAngle(b.dataset.a)));
+setAngle(180);
+
+[['samples','samplesV',v=>v],['strength','strengthV',v=>v+'%'],
+ ['photo','photoV',v=>v+'%']].forEach(([id,out,fmt])=>{
+  const el=document.getElementById(id);
+  el.addEventListener('input',()=>document.getElementById(out).textContent=fmt(el.value));
+});
+
+document.querySelectorAll('.seg button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.seg button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on');
+}));
+
+(function(){
+  const plate=document.getElementById('plate'), wipe=document.getElementById('wipe'),
+        clipL=document.getElementById('clipL'), clipR=document.getElementById('clipR');
+  let drag=false;
+  const move=e=>{
+    if(!drag) return;
+    const r=plate.getBoundingClientRect();
+    const p=Math.min(100,Math.max(0,((e.clientX-r.left)/r.width)*100));
+    wipe.style.left=p+'%';
+    const x=p*16;
+    clipL.setAttribute('width',x);
+    clipR.setAttribute('x',x);
+    clipR.setAttribute('width',1600-x);
+  };
+  wipe.addEventListener('pointerdown',e=>{drag=true;wipe.setPointerCapture(e.pointerId)});
+  wipe.addEventListener('pointermove',move);
+  wipe.addEventListener('pointerup',()=>drag=false);
+})();
+
+(function(){
+  const track=document.getElementById('track'), head=document.getElementById('head');
+  track.addEventListener('click',e=>{
+    const r=track.getBoundingClientRect();
+    const p=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width));
+    head.style.left=(p*100)+'%';
+    document.getElementById('tcur').textContent='00:0'+(p).toFixed(2).padStart(4,'0');
+  });
+})();
+</script>
+</body>
+</html>

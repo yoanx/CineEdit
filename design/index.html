@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CineBlur · UI 方向</title>
+<style>
+:root{
+  --bg:#f4f3f0;--card:#fbfaf8;--ink:#121314;--ink-2:#5c6064;--ink-3:#94989c;
+  --rule:#e2e0da;--accent:#1b47d6;
+  --serif:Georgia,"Source Han Serif SC","Songti SC",SimSun,serif;
+  --sans:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif;
+  --mono:"Cascadia Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font:14px/1.6 var(--sans);color:var(--ink);background:var(--bg);
+  -webkit-font-smoothing:antialiased;padding:56px 48px 80px;
+}
+header{max-width:1320px;margin:0 auto 40px;display:flex;align-items:flex-end;
+  justify-content:space-between;gap:40px;border-bottom:1px solid var(--rule);padding-bottom:24px}
+h1{font-family:var(--serif);font-size:34px;font-weight:400;letter-spacing:-.01em;line-height:1.1}
+h1 small{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.2em;
+  color:var(--ink-3);margin-bottom:12px}
+header p{max-width:420px;font-size:13px;color:var(--ink-2);line-height:1.75}
+.grid{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:36px}
+.card{background:var(--card);border:1px solid var(--rule);display:flex;flex-direction:column;
+  transition:box-shadow .25s ease,transform .25s ease}
+.card:hover{box-shadow:0 18px 40px -22px rgba(18,19,20,.45);transform:translateY(-2px)}
+.shot{
+  position:relative;width:100%;aspect-ratio:1440/900;overflow:hidden;background:#0a0a0a;
+  border-bottom:1px solid var(--rule);
+}
+.shot iframe{
+  position:absolute;top:0;left:0;width:1440px;height:900px;border:0;
+  transform-origin:top left;
+}
+.meta{padding:18px 22px 22px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.row h2{font-family:var(--serif);font-size:19px;font-weight:400;letter-spacing:.01em;
+  display:flex;align-items:baseline;gap:10px}
+.pick{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--accent);
+  border:1px solid rgba(27,71,214,.35);padding:2px 6px;font-style:normal;white-space:nowrap}
+.row h2 i{font-style:normal;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  color:var(--ink-3);margin-right:10px;vertical-align:2px}
+.open{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--accent);
+  text-decoration:none;border-bottom:1px solid transparent;white-space:nowrap}
+.open:hover{border-bottom-color:var(--accent)}
+.desc{font-size:12.5px;color:var(--ink-2);line-height:1.7}
+.swatches{display:flex;gap:6px;margin-top:4px;align-items:center}
+.swatches i{width:16px;height:16px;border:1px solid rgba(0,0,0,.1);display:block}
+.swatches span{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);
+  letter-spacing:.05em;margin-left:6px}
+@media(max-width:980px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <h1><small>UI DIRECTIONS</small>CineBlur 界面方向</h1>
+  <p>四套视觉语言，共用同一套信息结构与交互。差异只在于它们如何回答一个问题：
+     这个工具应该看起来像什么？<br>点开任意一张看可交互原型。</p>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<script>
+const DIRS=[
+  {file:'hybrid.html',no:'E',name:'混合',pick:true,
+   desc:'编辑台的排版骨架，换成光谱的深冷背景，参数区用暗房的描边图标；快门角是暗房那枚弧形刻度盘，弧线改成光谱渐变。',
+   tags:['#07080d','#e9edf9','#8fb0ff','#a97bff'],
+   note:'编辑台 × 光谱 × 暗房'},
+  {file:'darkroom.html',no:'A',name:'暗房',
+   desc:'唯一的亮色是安全灯下的琥珀光，画面是墙上唯一被照亮的相纸。快门角是一枚弧形刻度盘，拖影被当作冲洗出来的东西。',
+   tags:['#0a0806','#e0a955','#efe4d3','#b1a08a'],
+   note:'衬线 · 颗粒 · 光衰减分界'},
+  {file:'instrument.html',no:'B',name:'仪表',
+   desc:'一台放在剪辑台上的精密仪器。拉丝铝机箱、刻线、无圆角凹槽。快门角是一枚可以拧的旋钮，读数用等宽字体。',
+   tags:['#d9d5cc','#f1eee7','#002fa7','#141619'],
+   note:'Bahnschrift · 克莱因蓝 · 刻线'},
+  {file:'spectrum.html',no:'C',name:'光谱',
+   desc:'从"线性光积分"这条公式长出来。深冷黑蓝，光谱色只出现在子帧采样带和正在拖动的快门滑轨上，其余全部退到无色。',
+   tags:['#07080d','#5b8cff','#a97bff','#ff8fb8'],
+   note:'玻璃 · 光谱渐变 · 离散子帧'},
+  {file:'editorial.html',no:'D',name:'编辑台',
+   desc:'把它当成一本关于运动的画册。冷白纸、衬线标题、极细分割线、唯一一抹钴蓝。控件不装在盒子里，靠下划线和留白定位。',
+   tags:['#fbfbf9','#ffffff','#1b47d6','#0d0e0f'],
+   note:'衬线 · 钴蓝 · 图注式排版'}
+];
+
+const grid=document.getElementById('grid');
+DIRS.forEach(d=>{
+  const card=document.createElement('article');
+  card.className='card';
+  card.innerHTML=`
+    <div class="shot">
+      <iframe src="${d.file}" scrolling="no" tabindex="-1"></iframe>
+    </div>
+    <div class="meta">
+      <div class="row">
+        <h2><i>${d.no}</i>${d.name}${d.pick?'<em class="pick">选定</em>':''}</h2>
+        <a class="open" href="${d.file}" target="_blank">打开原型 ↗</a>
+      </div>
+      <p class="desc">${d.desc}</p>
+      <div class="swatches">
+        ${d.tags.map(c=>`<i style="background:${c}"></i>`).join('')}
+        <span>${d.note}</span>
+      </div>
+    </div>`;
+  grid.appendChild(card);
+});
+
+function scaleFrames(){
+  document.querySelectorAll('.shot').forEach(shot=>{
+    const f=shot.querySelector('iframe');
+    const s=shot.clientWidth/1440;
+    f.style.transform=`scale(${s})`;
+  });
+}
+scaleFrames();
+addEventListener('resize',scaleFrames);
+</script>
+</body>
+</html>

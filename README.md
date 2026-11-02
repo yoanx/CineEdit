@@ -1,12 +1,14 @@
 # CineEdit
 
+**中文** | [English](README.en.md)
+
 **基于光流和真实快门模型的视频运动模糊工具。**
 
 CineEdit 不是把画面沿固定方向拉长，而是在虚拟快门区间内使用 RAFT 光流重建多个
 子帧，再在线性光空间完成曝光积分。它适合给游戏录像、动画、合成镜头和普通视频
 增加更接近真实相机慢快门拍摄的运动模糊。
 
-![CineEdit desktop interface](docs/images/ui.png)
+![CineEdit desktop interface](docs/images/cinedit-ui.png)
 
 ## 功能
 
@@ -208,6 +210,8 @@ assets/weights/video_depth_anything_vits/
 
 | 项目 | 实测结果 |
 | --- | ---: |
+| Video Depth Anything Small streaming, 1080p, 392 input | 约 8.1 fps |
+
 Video Depth Anything Small 流式引擎在同一段 4.88 秒素材上实测约 8.1 fps
 （1080p，392 输入）。实际速度会随素材、编码器、驱动和显存状态变化。完整环境和测量方法见
 [`docs/depth-benchmark.md`](docs/depth-benchmark.md)。
@@ -270,9 +274,10 @@ python -m PyInstaller CineEdit.spec --noconfirm --clean
 生成结果位于 `dist/CineEdit/`。安装包生成脚本位于 `installer/`，构建产物不应提交
 到 Git 仓库。打包前必须准备好 `assets/weights/video_depth_anything_vits/`；
 `CineEdit.spec` 会把模型目录、VDA 代码和依赖一起收进
-程序目录。当前 onedir 实测约 4.70 GiB；GitHub Release 单个文件必须小于 2 GiB，
-因此不能把整个 onedir 目录或未拆分压缩包作为一个 Release asset 直接上传。发布前
-必须拆分压缩包或改用外部托管，并记录分片校验值；这是发布门禁。
+程序目录。当前 onedir 实测约 4.8 GiB；安装包用 `lzma2/ultra64` 固实压缩后实测约
+1.92 GiB（2,063,639,181 字节），低于 GitHub Release 单文件 2 GiB 的限制，可以直接
+作为 Release asset 上传。余量只有约 80 MiB，载荷再增长就需要裁剪 CUDA 运行时或
+改成分卷，发布前应重新核对安装包大小。
 
 随包 FFmpeg 的 GPLv3 义务见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。
 

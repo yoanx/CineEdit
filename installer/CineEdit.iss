@@ -4,8 +4,8 @@
 ; 设计取舍
 ;   · PrivilegesRequired=lowest —— 装到 %LOCALAPPDATA%，全程不弹 UAC，
 ;     朋友拿到就能装，不需要管理员口令
-;   · Compression=lzma2/max 但不启用 SolidCompression —— 载荷 4.6 GB，
-;     固态压缩需要数 GB 内存，编译机内存不足时会中途失败
+;   · Compression=lzma2/ultra64 + SolidCompression=yes —— 载荷 4.8 GB，
+;     固实压缩把安装包压到 2 GB 以内（GitHub Release 单文件上限）
 ;   · 不额外安装运行库：torch 的 CUDA DLL、VC++ 运行时、ffmpeg、
 ;     RAFT 权重全部已在 dist 内，装完即可离线使用
 
@@ -29,8 +29,8 @@ OutputBaseFilename=CineEdit-Setup-{#AppVersion}
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName} 运动模糊渲染器
-Compression=lzma2/max
-SolidCompression=no
+Compression=lzma2/ultra64
+SolidCompression=yes
 WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 CloseApplications=yes

@@ -4,8 +4,10 @@ torchvision>=0.22
 numpy>=1.26
 imageio-ffmpeg>=0.5
 Pillow>=10.0
-transformers==4.57.1
 pywebview>=5.0
+opencv-python-headless>=4.10
+einops>=0.8
+easydict>=1.13
 
 # 仅重新打包 exe 时需要（运行不需要）
 # pyinstaller>=6.10

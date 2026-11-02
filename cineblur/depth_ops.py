@@ -27,15 +27,16 @@ def normalize_depth(
     return 1.0 - out if invert else out
 
 
-def temporal_blend(
-    current: torch.Tensor,
-    previous: torch.Tensor | None,
-    static_mask: torch.Tensor,
-    alpha: float = 0.75,
-) -> torch.Tensor:
-    """Blend only pixels whose source frame is static."""
+def smooth_range(
+    previous: tuple[float, float] | None,
+    current: tuple[float, float],
+    alpha: float = 0.95,
+) -> tuple[float, float]:
+    """Keep depth visualization contrast from jumping between frames."""
     if previous is None:
         return current
     alpha = max(0.0, min(1.0, alpha))
-    blended = previous.lerp(current, 1.0 - alpha)
-    return torch.where(static_mask, blended, current)
+    return (
+        alpha * previous[0] + (1.0 - alpha) * current[0],
+        alpha * previous[1] + (1.0 - alpha) * current[1],
+    )

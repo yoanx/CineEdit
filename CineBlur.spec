@@ -3,8 +3,8 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [
     ('assets', 'assets'),
-    ('assets/weights/depth_anything_v2_small',
-     'assets/weights/depth_anything_v2_small'),
+    ('cineblur/video_depth_anything/LICENSE',
+     'cineblur/video_depth_anything'),
     ('cineblur/ui.html', 'cineblur'),
 ]
 binaries = []
@@ -15,10 +15,6 @@ tmp_ret = collect_all('pythonnet')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('clr_loader')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-tmp_ret = collect_all('transformers')
-datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
-
-
 a = Analysis(
     ['run_app.py'],
     pathex=[],
@@ -28,7 +24,10 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['matplotlib', 'tkinter', 'pandas', 'scipy', 'pytest', 'IPython', 'PyQt5', 'PySide6'],
+    excludes=[
+        'matplotlib', 'tkinter', 'pandas', 'scipy', 'pytest', 'IPython',
+        'PyQt5', 'PySide6', 'transformers',
+    ],
     noarchive=False,
     optimize=0,
 )

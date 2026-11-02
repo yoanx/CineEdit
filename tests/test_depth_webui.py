@@ -11,7 +11,7 @@ import torch
 import cineblur.preview as preview
 import cineblur.webui as webui
 from cineblur.config import DepthConfig
-from cineblur.depth_engine import release_depth_engine
+from cineblur.video_depth_engine import release_preview_video_depth_engine
 
 
 class FakeDepthEngine:
@@ -31,6 +31,9 @@ class FakeDepthEngine:
             height * width,
             device=frame.device,
         ).reshape(1, 1, height, width)
+
+    def reset(self):
+        pass
 
 
 class ImmediateThread:
@@ -57,7 +60,7 @@ class TrackingLock:
 
 class DepthWebUITests(unittest.TestCase):
     def tearDown(self):
-        release_depth_engine()
+        release_preview_video_depth_engine()
         preview._DEPTH_FRAME_CACHE.clear()
         preview._DEPTH_OUTPUT_CACHE.clear()
         webui.JOB.update(
@@ -116,7 +119,7 @@ class DepthWebUITests(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix=".mp4") as source:
             with (
                 patch(
-                    "cineblur.preview.get_depth_engine",
+                    "cineblur.preview.get_preview_video_depth_engine",
                     return_value=engine,
                 ) as accessor,
                 patch("cineblur.preview._size_of", return_value=(2, 2)),
@@ -326,14 +329,14 @@ class DepthWebUITests(unittest.TestCase):
     def test_env_reports_depth_model_availability(self):
         with patch.object(
             webui,
-            "depth_model_available",
+            "video_depth_model_available",
             return_value=True,
         ):
             self.assertTrue(webui.env_info()["depth_model"])
 
         with patch.object(
             webui,
-            "depth_model_available",
+            "video_depth_model_available",
             return_value=False,
         ):
             self.assertFalse(webui.env_info()["depth_model"])

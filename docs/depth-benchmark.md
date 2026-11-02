@@ -19,28 +19,16 @@ includes decode, depth inference, grayscale conversion, and encode.
 
 ## Results
 
+Video Depth Anything Small streaming, measured on a 4.88 s 1080p Valorant
+segment with 392 input:
+
 | Metric | Result |
 | --- | ---: |
-| Model load | 0.532 s |
-| 720p render, 1280x720 | 5.970 s, 15.08 fps |
-| 1080p render, 1920x1080 | 8.712 s, 10.33 fps |
+| 1080p render, 480x270 preview | 22.87 s, 12.77 fps |
+| 1080p render, full resolution | 35.99 s, 8.11 fps |
 
-The earlier Turbo/336 run measured 17.76 fps at 720p and 11.07 fps at 1080p.
-Fast/392 is slower, but it completed both benchmark renders without a hard
-failure. The approved Fast default therefore remains unchanged.
-
-## Temporal Stability
-
-A 10-frame comparison on `bench1080.mp4` measured the mean absolute
-frame-to-frame difference inside static background pixels:
-
-| Mode | Mean frame-to-frame difference |
-| --- | ---: |
-| Temporal stability off | 5.95 / 255 |
-| Temporal stability on | 1.36 / 255 |
-
-The motion-masked temporal blend reduced static-area flicker by approximately
-77% without optical flow or a measurable render-time penalty.
+The VDA stream keeps temporal state across frames and does not use the old
+single-frame Depth Anything model or its motion-masked blend.
 
 Benchmark outputs and source clips stay under the ignored `out/` directory.
 This file is the tracked benchmark record.

@@ -22,11 +22,11 @@ import torch
 
 from .blur import render_frame
 from .config import BlurConfig, DepthConfig
-from .depth_engine import get_depth_engine
 from .depth_ops import depth_range, normalize_depth
 from .flow import FlowEngine
 from .imageops import srgb_to_linear
 from .media import CREATIONFLAGS, find_exe, probe
+from .video_depth_engine import get_preview_video_depth_engine
 
 _ENGINE: FlowEngine | None = None
 _LOCK = threading.Lock()
@@ -113,7 +113,7 @@ def _cache_put(cache: dict[tuple, np.ndarray], key: tuple, value: np.ndarray) ->
 
 
 def _depth_engine(cfg: DepthConfig):
-    return get_depth_engine(cfg.device)
+    return get_preview_video_depth_engine(cfg.device)
 
 
 def _depth_frame(src: str, idx: int, w: int, h: int) -> np.ndarray:

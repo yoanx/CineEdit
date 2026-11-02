@@ -26,7 +26,7 @@ from .config import BlurConfig, DepthConfig
 from .depth_pipeline import DepthRenderer
 from .media import find_exe, probe, unique_output_path
 from .pipeline import MotionBlurRenderer
-from .weights import depth_model_available
+from .weights import video_depth_model_available
 
 VIDEO_EXT = {".mp4", ".mov", ".mkv", ".avi", ".m4v", ".webm", ".mpg", ".mpeg", ".wmv"}
 
@@ -144,7 +144,6 @@ def build_depth_cfg(p: dict) -> DepthConfig:
         quality=p.get("quality") or "fast",
         output_height=int(_num(p.get("preview"), 0)),
         invert=_flag(p, "invert"),
-        temporal_stability=_flag(p, "temporal", True),
         codec=p.get("codec") or "auto",
         crf=int(_num(p.get("crf"), 18)),
         device=p.get("device") or "auto",
@@ -164,7 +163,7 @@ def default_output(src: str, mode: str) -> str:
 
 def env_info() -> dict:
     info = {"ffmpeg": find_exe("ffmpeg"), "gpu": None, "torch": None, "cuda": False,
-            "webview": False, "depth_model": depth_model_available()}
+            "webview": False, "depth_model": video_depth_model_available()}
     try:
         import torch
         info["torch"] = torch.__version__

@@ -38,6 +38,9 @@ class DepthConfigTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported depth codec"):
             DepthConfig(codec="vp9").validate()
 
+    def test_depth_validate_rejects_invalid_range_alpha(self):
+        with self.assertRaisesRegex(ValueError, "range_alpha"):
+            DepthConfig(range_alpha=1.1).validate()
 
 if __name__ == "__main__":
     unittest.main()

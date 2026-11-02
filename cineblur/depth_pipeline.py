@@ -11,14 +11,15 @@ import numpy as np
 import torch
 
 from .config import DepthConfig
-from .depth_engine import DepthEngine, get_depth_engine
 from .depth_ops import (
     depth_range,
     is_processed_depth_source,
     normalize_depth,
-    temporal_blend,
+    smooth_range,
 )
 from .media import Decoder, Encoder, VideoInfo, probe
+from .video_depth_engine import VideoDepthEngine
+from .weights import video_depth_model_available
 
 
 def _to_tensor(arr: np.ndarray, device: torch.device) -> torch.Tensor:
@@ -73,15 +74,19 @@ def _report(progress, done: int, total: int, started: float) -> None:
 
 
 class DepthRenderer:
-    def __init__(self, cfg: DepthConfig, engine: DepthEngine | None = None):
+    def __init__(self, cfg: DepthConfig, engine: VideoDepthEngine | None = None):
         cfg.validate()
         self.cfg = cfg
         self.engine = engine
 
     def _ensure_engine(self):
         if self.engine is None:
-            # The accessor owns the resident model; renderers only borrow it.
-            self.engine = get_depth_engine(self.cfg.device)
+            if not video_depth_model_available():
+                raise RuntimeError(
+                    "Video Depth Anything model not found; install it under "
+                    "assets/weights/video_depth_anything_vits/"
+                )
+            self.engine = VideoDepthEngine(self.cfg.device)
         return self.engine
 
     @torch.inference_mode()
@@ -113,6 +118,7 @@ class DepthRenderer:
         fps = info.fps
         fps_value = float(fps)
         engine = self._ensure_engine()
+        log("Depth engine Video Depth Anything Small (streaming)")
         if cancel and cancel():
             log("Cancelled")
             return {"cancelled": True, "frames": 0,
@@ -200,8 +206,7 @@ class DepthRenderer:
         started = time.time()
         done = 0
         cancelled = False
-        previous_rgb = None
-        previous_depth = None
+        previous_range = None
         threads_started = False
         render_failed = False
 
@@ -226,30 +231,18 @@ class DepthRenderer:
                     log=log,
                 )
                 low, high = depth_range(depth)
+                low, high = smooth_range(
+                    previous_range,
+                    (low, high),
+                    cfg.range_alpha,
+                )
+                previous_range = (low, high)
                 gray = normalize_depth(
                     depth,
                     low,
                     high,
                     cfg.invert,
                 )
-                if (
-                    cfg.temporal_stability
-                    and previous_rgb is not None
-                    and previous_depth is not None
-                ):
-                    motion = (frame_tensor - previous_rgb).abs().mean(
-                        dim=1, keepdim=True
-                    )
-                    static_mask = motion < cfg.motion_threshold
-                    if float(static_mask.float().mean()) >= cfg.min_static_ratio:
-                        gray = temporal_blend(
-                            gray,
-                            previous_depth,
-                            static_mask,
-                            cfg.temporal_alpha,
-                        )
-                previous_rgb = frame_tensor
-                previous_depth = gray.detach()
                 gray_u8 = (
                     gray.clamp(0, 1)[0]
                     .mul(255)
@@ -331,4 +324,6 @@ class DepthRenderer:
         return stats
 
     def close(self) -> None:
+        if self.engine is not None and hasattr(self.engine, "release"):
+            self.engine.release()
         self.engine = None

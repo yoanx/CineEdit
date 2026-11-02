@@ -42,25 +42,6 @@ class ConstantEngine:
         self.released = True
 
 
-class AlternatingDepthEngine:
-    device = torch.device("cpu")
-
-    def __init__(self):
-        self.calls = 0
-
-    def estimate(self, frame, input_size, log=None):
-        self.calls += 1
-        depth = torch.zeros(1, 1, frame.shape[-2], frame.shape[-1])
-        if self.calls % 2:
-            depth[..., :frame.shape[-1] // 2] = 1.0
-        else:
-            depth[..., frame.shape[-1] // 2:] = 1.0
-        return depth
-
-    def release(self):
-        pass
-
-
 class FailingEncoder:
     instances = []
 
@@ -164,7 +145,6 @@ class DepthPipelineTests(unittest.TestCase):
             output_height=64,
             device="cpu",
             codec="libx264",
-            temporal_stability=False,
         )
         logs = []
         engine = ConstantEngine()
@@ -188,58 +168,6 @@ class DepthPipelineTests(unittest.TestCase):
         self.assertTrue(
             any("already motion-blurred" in message for message in logs)
         )
-
-    def test_temporal_stability_reduces_static_depth_flicker(self):
-        info = VideoInfo(
-            path="source.mp4",
-            width=64,
-            height=64,
-            fps=Fraction(30, 1),
-            nb_frames=4,
-            duration=4 / 30,
-            has_audio=False,
-        )
-
-        def render(temporal):
-            RecordingEncoder.instances.clear()
-            engine = AlternatingDepthEngine()
-            cfg = DepthConfig(
-                quality="fast",
-                output_height=64,
-                device="cpu",
-                codec="libx264",
-                temporal_stability=temporal,
-                temporal_alpha=0.75,
-                motion_threshold=0.02,
-            )
-            renderer = DepthRenderer(cfg, engine=engine)
-            with tempfile.TemporaryDirectory() as tmp:
-                with (
-                    patch("cineblur.depth_pipeline.probe", return_value=info),
-                    patch("cineblur.depth_pipeline.Decoder", FiniteDecoder),
-                    patch("cineblur.depth_pipeline.Encoder", RecordingEncoder),
-                ):
-                    renderer.render(DEMO, os.path.join(tmp, "depth.mp4"))
-            frames = np.stack(RecordingEncoder.instances[0].frames)
-            return np.abs(frames[1:].astype(np.float32) - frames[:-1].astype(np.float32)).mean()
-
-        raw_delta = render(False)
-        stable_delta = render(True)
-        self.assertLess(stable_delta, raw_delta * 0.6)
-
-    def test_renderer_uses_shared_engine_without_releasing_it(self):
-        engine = ConstantEngine()
-        renderer = DepthRenderer(DepthConfig(device="cpu"))
-
-        with patch(
-            "cineblur.depth_pipeline.get_depth_engine",
-            return_value=engine,
-        ) as accessor:
-            self.assertIs(renderer._ensure_engine(), engine)
-
-        accessor.assert_called_once_with("cpu")
-        renderer.close()
-        self.assertFalse(engine.released)
 
     def test_renderer_preserves_video_timing_and_writes_grayscale_without_audio(self):
         ffmpeg = find_exe("ffmpeg")
@@ -300,7 +228,7 @@ class DepthPipelineTests(unittest.TestCase):
             finally:
                 renderer.close()
 
-            self.assertFalse(engine.released)
+            self.assertTrue(engine.released)
             self.assertEqual(engine.calls, [392] * 6)
             self.assertEqual(
                 set(stats),

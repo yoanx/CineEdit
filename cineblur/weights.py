@@ -17,7 +17,7 @@ WEIGHT_FILES = (
     "raft_large_C_T_SKHT_V2-ff5fadd5.pth",
     "raft_small_C_T_V2-01064c6d.pth",
 )
-DEPTH_MODEL_DIR = "depth_anything_v2_small"
+VIDEO_DEPTH_MODEL_DIR = "video_depth_anything_vits"
 
 
 def _bundle_dir() -> str | None:
@@ -46,34 +46,24 @@ def cache_dir() -> str:
         return os.path.join(os.path.expanduser("~"), ".cache", "torch", "hub", "checkpoints")
 
 
-def depth_model_dir() -> str:
-    """返回随包的 Depth Anything V2 模型目录。"""
+def video_depth_model_dir() -> str:
+    """Return the bundled Video Depth Anything Small directory."""
     src = _bundle_dir()
     if not src:
-        raise FileNotFoundError("depth model directory not found")
-    path = os.path.join(src, DEPTH_MODEL_DIR)
+        raise FileNotFoundError("video depth model directory not found")
+    path = os.path.join(src, VIDEO_DEPTH_MODEL_DIR)
     if not os.path.isdir(path):
-        raise FileNotFoundError(f"depth model not found: {path}")
+        raise FileNotFoundError(f"video depth model not found: {path}")
     return path
 
 
-def depth_model_available() -> bool:
-    """Return whether the required local depth model files are present."""
+def video_depth_model_available() -> bool:
+    """Return whether the bundled Video Depth Anything checkpoint exists."""
     try:
-        path = depth_model_dir()
+        path = video_depth_model_dir()
     except (FileNotFoundError, OSError):
         return False
-    config = os.path.join(path, "config.json")
-    processor = os.path.join(path, "preprocessor_config.json")
-    weights = (
-        os.path.join(path, "model.safetensors"),
-        os.path.join(path, "pytorch_model.bin"),
-    )
-    return (
-        os.path.isfile(config)
-        and os.path.isfile(processor)
-        and any(os.path.isfile(item) for item in weights)
-    )
+    return os.path.isfile(os.path.join(path, "video_depth_anything_vits.pth"))
 
 
 def ensure_weights() -> int:

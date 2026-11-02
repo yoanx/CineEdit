@@ -17,7 +17,7 @@ CineBlur 不是把画面沿固定方向拉长，而是在虚拟快门区间内�
 - 稳健模式：可选双向光流、前后向一致性和光度一致性权重。
 - 交互预览：拖动时间轴即可查看当前帧，支持原片、模糊和对比三种视图。
 - 双工作模式：左侧模式栏可在运动模糊与深度图之间切换，并分别保留两套参数和输出路径。
-- 单目深度图：使用本地 Depth Anything V2 Small 模型，支持三档推理精度和离线处理。
+- 视频深度图：使用本地 Video Depth Anything Small 流式模型，支持离线处理。
 - 常用输出选项：保留输入帧率和音轨，可选择 H.264/H.265、NVENC 和 CRF。
 - 多种入口：桌面窗口、本地 Web UI、命令行和打包后的 Windows 程序。
 - 中英双语界面：桌面版支持 Windows 文件选择器和键盘快捷键。
@@ -58,13 +58,13 @@ position in prev = x - (1 + tau) * F
 - 推荐 NVIDIA CUDA GPU；CPU 也可运行，但完整视频渲染会明显更慢。
 - `ffmpeg.exe` 和 `ffprobe.exe` 必须位于 `PATH`、项目 `assets/ffmpeg/` 或程序
   旁边的对应目录。
-- 深度图模式需要 `transformers==4.57.1`，并从项目内的
-  `assets/weights/depth_anything_v2_small/` 加载 Depth Anything V2 Small。
+- 深度图模式需要 OpenCV、Einops 和 EasyDict；视频深度模型从
+  `assets/weights/video_depth_anything_vits/` 加载。
 - 桌面窗口优先使用 WebView2；缺失时程序会尝试回退到 Edge 应用模式或浏览器。
 
-源码仓库不包含 `.venv`、`dist`、安装包、FFmpeg 二进制、RAFT 权重和测试视频。
-首次运行时 torchvision 通常会下载所需的 RAFT 权重。Depth Anything V2 Small 权重也不会
-从仓库自动下载，使用深度图模式前需要按下方说明准备本地模型目录。
+源码仓库不包含 `.venv`、`dist`、安装包、FFmpeg 二进制和测试视频。首次运行时
+torchvision 通常会下载所需的 RAFT 权重。深度模型权重按下方说明准备本地目录，
+程序不会在预览或渲染时联网下载深度模型。
 
 ## 安装
 
@@ -90,17 +90,15 @@ python -m pip install -r requirements.txt
 
 ### 安装深度模型
 
-把 Depth Anything V2 Small 的 Transformers 格式文件放到：
+深度图模式使用 Video Depth Anything Small：
 
 ```text
-assets/weights/depth_anything_v2_small/
-  config.json
-  model.safetensors
-  preprocessor_config.json
+assets/weights/video_depth_anything_vits/
+  video_depth_anything_vits.pth
 ```
 
-程序只从该目录加载模型，并使用 `local_files_only=True` 禁止预览或渲染时访问
-Hugging Face。缺少模型文件时深度图模式会直接报错，不会自动下载。
+程序只从该目录加载模型，并使用本地权重，不会在预览或渲染时访问 Hugging Face。
+模型缺失时深度图模式会直接报错。
 
 ### 安装 FFmpeg
 
@@ -140,20 +138,19 @@ Hugging Face。缺少模型文件时深度图模式会直接报错，不会自�
 
 ### 深度图模式
 
-在界面最左侧选择“深度图”即可进入单目深度图工作区。切换模式不会重新载入素材，
+在界面最左侧选择“深度图”即可进入深度图工作区。切换模式不会重新载入素材，
 当前时间轴位置、裁剪区间以及运动模糊参数都会保留。深度图模式提供质量档位、输出
 分辨率、深度反转和编码器设置；再次切回“运动模糊”时，两套参数仍各自独立。
 
 深度图默认输出为源文件名加 `_depth.mp4`，画面为 8-bit 灰度，近处更亮、远处更暗，
 不包含音轨，帧率和裁剪区间与源视频一致。模型从项目内的
-`assets/weights/depth_anything_v2_small/` 加载，正常预览和渲染不会联网下载权重。
+`assets/weights/video_depth_anything_vits/` 加载，正常预览和渲染不会联网下载权重。
 默认会保留历史产物，重复渲染同一素材时自动改用 `_2.mp4`、`_3.mp4` 等递增名称；
 可在设置中关闭这一行为。
 深度图应优先使用未模糊的原片；如果载入的是程序生成的 `_blur.mp4`，界面会提示改用
 原片，因为运动模糊会放大彩色技能特效和屏幕叠加层，容易造成深度误判。
-完整渲染默认启用“时域稳定”：静态区域会与上一帧深度做运动感知融合，减少复杂视频
-中的频闪；快速相机运动或大面积场景切换会自动保留当前帧，避免拖影。静态背景
-区域的实测帧间差由 5.95/255 降至 1.36/255，约减少 77%。
+完整渲染使用 Video Depth Anything 的流式时序状态。视频引擎逐帧处理，不会把整段
+视频一次性读入内存。深度图仍是相对单目深度，不包含音频。
 
 ### 命令行
 
@@ -207,18 +204,12 @@ Hugging Face。缺少模型文件时深度图模式会直接报错，不会自�
 性能分析脚本位于 [`tools/tradeoff.py`](tools/tradeoff.py)，质量评估脚本位于
 [`tools/evaluate.py`](tools/evaluate.py)。
 
-深度图模式的本地实测使用 Depth Anything V2 Small、默认 Fast 档位（392 输入边长）
-和 RTX 5060 Laptop GPU，测试视频为 1080p、30 fps、90 帧：
+深度图模式的本地实测使用 RTX 5060 Laptop GPU、392 输入边长和 1080p 测试视频：
 
 | 项目 | 实测结果 |
 | --- | ---: |
-| 模型加载 | 0.532 s |
-| 720p 完整渲染（含解码和编码） | 15.08 fps |
-| 1080p 完整渲染（含解码和编码） | 10.33 fps |
-
-完整渲染使用 90 帧测试片段；实际速度会随素材、编码器、驱动和显存状态变化。
-此前 Turbo/336 实测为 720p 17.76 fps、1080p 11.07 fps。Fast 较慢但没有硬失败，
-因此继续作为已批准默认档位。完整环境和测量方法见
+Video Depth Anything Small 流式引擎在同一段 4.88 秒素材上实测约 8.1 fps
+（1080p，392 输入）。实际速度会随素材、编码器、驱动和显存状态变化。完整环境和测量方法见
 [`docs/depth-benchmark.md`](docs/depth-benchmark.md)。
 
 ## 已知限制
@@ -228,7 +219,8 @@ Hugging Face。缺少模型文件时深度图模式会直接报错，不会自�
 2. 纯色或无纹理物体可能低估运动速度，拖影会比真实运动偏短。
 3. 快门角超过 360° 没有物理意义；需要更长拖影时应先提高输入帧率。
 4. 8 GB 显存下，1080p 配合 `--flow-scale 1.0` 可能显存不足。
-5. 深度图默认启用静态区域时域融合；快速相机运动、大面积遮挡或场景切换区域仍按当前帧处理，可能出现轻微闪烁。
+5. 视频深度引擎仍不能恢复模型没有识别出的真实几何；极端遮挡、大面积屏幕
+   叠加层和快速状态切换可能出现局部错误。
 6. 完整渲染不是实时效果，首次模型加载和长视频处理都需要额外时间。
 7. 深度图是相对单目深度，不是可直接测量的绝对距离；反转开关只交换黑白映射。
 
@@ -240,7 +232,8 @@ cineblur/
     blur.py       快门积分与子帧合成
     flow.py       RAFT 光流、特征缓存和收敛提前退出
     imageops.py   颜色空间、重采样、引导滤波和蓝噪声
-    depth_engine.py  Depth Anything V2 推理
+    video_depth_engine.py  Video Depth Anything 流式推理
+    video_depth_anything/  内置视频深度模型代码
     depth_pipeline.py 深度图视频渲染
     media.py      FFmpeg 探测、解码和编码
     pipeline.py   解码、光流、积分、编码流水线
@@ -262,8 +255,7 @@ cineblur/
 测试不需要完整视频渲染，主要覆盖参数映射、预览解码、文件选择、错误连接处理和
 零快门快速路径。
 
-离线模型验证使用 `HF_HUB_OFFLINE=1`、`TRANSFORMERS_OFFLINE=1` 和
-`local_files_only=True`，证明模型来自 Hugging Face 本地缓存或项目模型目录；
+离线模型验证使用本地权重和离线启动检查，证明模型来自项目模型目录；
 这不是操作系统级断网隔离。完整安装包仍需在目标机器上做一次实际断网验收。
 
 ## 打包
@@ -276,8 +268,8 @@ python -m PyInstaller CineBlur.spec --noconfirm --clean
 ```
 
 生成结果位于 `dist/CineBlur/`。安装包生成脚本位于 `installer/`，构建产物不应提交
-到 Git 仓库。打包前必须准备好 `assets/weights/depth_anything_v2_small/`；
-`CineBlur.spec` 会把模型目录和 `transformers` 的数据、二进制及隐藏导入一起收进
+到 Git 仓库。打包前必须准备好 `assets/weights/video_depth_anything_vits/`；
+`CineBlur.spec` 会把模型目录、VDA 代码和依赖一起收进
 程序目录。当前 onedir 实测约 4.70 GiB；GitHub Release 单个文件必须小于 2 GiB，
 因此不能把整个 onedir 目录或未拆分压缩包作为一个 Release asset 直接上传。发布前
 必须拆分压缩包或改用外部托管，并记录分片校验值；这是发布门禁。

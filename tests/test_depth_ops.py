@@ -5,7 +5,7 @@ from cineblur.depth_ops import (
     depth_range,
     is_processed_depth_source,
     normalize_depth,
-    temporal_blend,
+    smooth_range,
 )
 
 
@@ -26,15 +26,14 @@ class DepthOpsTests(unittest.TestCase):
         inverted = normalize_depth(depth, 0.0, 1.0, invert=True)
         self.assertTrue(torch.equal(normal, 1.0 - inverted))
 
-    def test_temporal_blend_only_smooths_static_pixels(self):
-        current = torch.tensor([[[[1.0, 0.5]]]])
-        previous = torch.tensor([[[[0.0, 0.5]]]])
-        static = torch.tensor([[[[True, False]]]])
-
-        out = temporal_blend(current, previous, static, alpha=0.75)
-
-        self.assertTrue(torch.isclose(out[0, 0, 0, 0], torch.tensor(0.25)))
-        self.assertTrue(torch.isclose(out[0, 0, 0, 1], torch.tensor(0.5)))
+    def test_smooth_range_uses_previous_range(self):
+        low, high = smooth_range(
+            (0.0, 10.0),
+            (10.0, 20.0),
+            alpha=0.95,
+        )
+        self.assertAlmostEqual(low, 0.5)
+        self.assertAlmostEqual(high, 10.5)
 
     def test_detects_already_blurred_depth_source(self):
         self.assertTrue(

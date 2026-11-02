@@ -12,6 +12,9 @@ CineBlur 的源代码使用 MIT License。项目依赖、模型权重和可选�
 | NumPy | 视频帧和数组处理 | BSD-3-Clause，并包含其他兼容许可证 |
 | Pillow | 预览图像编码 | MIT-CMU |
 | imageio-ffmpeg | FFmpeg 可执行文件查找与回退 | BSD-2-Clause |
+| OpenCV | 视频深度模型输入缩放 | Apache-2.0 |
+| Einops | 视频深度模型张量变换 | MIT |
+| EasyDict | 视频深度模型配置对象 | MIT |
 | pywebview | 桌面窗口与本地 Web UI | BSD-3-Clause |
 | pythonnet | pywebview 的 .NET 互操作 | MIT |
 | clr-loader | .NET 运行时加载 | MIT |
@@ -44,6 +47,12 @@ ffmpeg version N-128100-gceb466cbcd-20261026
 `raft_large` 和 `raft_small` 权重由 torchvision 的官方模型入口下载。源码仓库不提交
 这些权重文件。打包分发时，请保留 PyTorch 和 torchvision 的版权与许可证声明，
 并核对所使用模型权重的上游发布条款。
+
+## Video Depth Anything Small
+
+`Video-Depth-Anything-Small` 的推理代码和模型权重受 Apache License 2.0 约束。
+项目内 vendored 代码位于 `cineblur/video_depth_anything/`，许可证文本随该目录
+一并分发。模型权重位于 `assets/weights/video_depth_anything_vits/`。
 
 ## System components
 

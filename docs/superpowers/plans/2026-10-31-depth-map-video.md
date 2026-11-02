@@ -28,7 +28,7 @@
 ### Task 1: Add Pure Depth Normalization Utilities
 
 **Files:**
-- Create: `cineblur/depth_ops.py`
+- Create: `cinedit/depth_ops.py`
 - Create: `tests/test_depth_ops.py`
 
 **Interfaces:**
@@ -44,7 +44,7 @@
 import unittest
 
 import torch
-from cineblur.depth_ops import depth_range, normalize_depth, smooth_range
+from cinedit.depth_ops import depth_range, normalize_depth, smooth_range
 
 
 class DepthOpsTests(unittest.TestCase):
@@ -72,7 +72,7 @@ class DepthOpsTests(unittest.TestCase):
 
 Run: `.venv\Scripts\python.exe -m unittest tests.test_depth_ops -v`
 
-Expected: FAIL because `cineblur.depth_ops` does not exist.
+Expected: FAIL because `cinedit.depth_ops` does not exist.
 
 - [ ] **Step 3: Implement the minimal utilities**
 
@@ -116,7 +116,7 @@ Expected: 3 tests pass.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add cineblur/depth_ops.py tests/test_depth_ops.py
+git add cinedit/depth_ops.py tests/test_depth_ops.py
 git commit -m "feat: add depth normalization utilities"
 ```
 
@@ -125,7 +125,7 @@ git commit -m "feat: add depth normalization utilities"
 ### Task 2: Add Depth Configuration
 
 **Files:**
-- Modify: `cineblur/config.py`
+- Modify: `cinedit/config.py`
 - Create: `tests/test_depth_config.py`
 
 **Interfaces:**
@@ -140,7 +140,7 @@ git commit -m "feat: add depth normalization utilities"
 ```python
 import unittest
 
-from cineblur.config import DepthConfig
+from cinedit.config import DepthConfig
 
 
 class DepthConfigTests(unittest.TestCase):
@@ -162,7 +162,7 @@ Run: `.venv\Scripts\python.exe -m unittest tests.test_depth_config -v`
 
 Expected: FAIL because `DepthConfig` is missing.
 
-- [ ] **Step 3: Add `DepthConfig` to `cineblur/config.py`**
+- [ ] **Step 3: Add `DepthConfig` to `cinedit/config.py`**
 
 ```python
 @dataclass
@@ -201,7 +201,7 @@ Expected: 2 tests pass.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add cineblur/config.py tests/test_depth_config.py
+git add cinedit/config.py tests/test_depth_config.py
 git commit -m "feat: add depth rendering config"
 ```
 
@@ -210,9 +210,9 @@ git commit -m "feat: add depth rendering config"
 ### Task 3: Add Depth Anything Engine And Offline Weights
 
 **Files:**
-- Create: `cineblur/depth_engine.py`
+- Create: `cinedit/depth_engine.py`
 - Create: `assets/weights/depth_anything_v2_small/` with model files
-- Modify: `cineblur/weights.py`
+- Modify: `cinedit/weights.py`
 - Modify: `requirements.txt`
 - Create: `tests/test_depth_engine.py`
 
@@ -250,7 +250,7 @@ Expected: `config.json`, `model.safetensors`, and processor configuration files 
 import unittest
 
 import torch
-from cineblur.depth_engine import DepthEngine
+from cinedit.depth_engine import DepthEngine
 
 
 class DepthEngineTests(unittest.TestCase):
@@ -305,7 +305,7 @@ Expected: PASS on CUDA; skip only if CUDA is unavailable.
 - [ ] **Step 7: Commit**
 
 ```powershell
-git add cineblur/depth_engine.py cineblur/weights.py requirements.txt assets/weights/depth_anything_v2_small tests/test_depth_engine.py
+git add cinedit/depth_engine.py cinedit/weights.py requirements.txt assets/weights/depth_anything_v2_small tests/test_depth_engine.py
 git commit -m "feat: add offline depth anything engine"
 ```
 
@@ -314,9 +314,9 @@ git commit -m "feat: add offline depth anything engine"
 ### Task 4: Add Depth Video Renderer
 
 **Files:**
-- Create: `cineblur/depth_pipeline.py`
+- Create: `cinedit/depth_pipeline.py`
 - Create: `tests/test_depth_pipeline.py`
-- Modify: `cineblur/pipeline.py` only if shared helpers are extracted; keep motion-blur behavior unchanged.
+- Modify: `cinedit/pipeline.py` only if shared helpers are extracted; keep motion-blur behavior unchanged.
 
 **Interfaces:**
 - Consumes: `DepthConfig`, `DepthEngine`, `Decoder`, `Encoder`.
@@ -334,9 +334,9 @@ import unittest
 
 import torch
 
-from cineblur.config import DepthConfig
-from cineblur.depth_pipeline import DepthRenderer
-from cineblur.media import probe
+from cinedit.config import DepthConfig
+from cinedit.depth_pipeline import DepthRenderer
+from cinedit.media import probe
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEMO = os.path.join(ROOT, "out", "demo_src.mp4")
@@ -401,7 +401,7 @@ Expected: PASS; output has no audio.
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add cineblur/depth_pipeline.py tests/test_depth_pipeline.py
+git add cinedit/depth_pipeline.py tests/test_depth_pipeline.py
 git commit -m "feat: render depth map videos"
 ```
 
@@ -410,8 +410,8 @@ git commit -m "feat: render depth map videos"
 ### Task 5: Add Depth Preview And API Mode Routing
 
 **Files:**
-- Modify: `cineblur/preview.py`
-- Modify: `cineblur/webui.py`
+- Modify: `cinedit/preview.py`
+- Modify: `cinedit/webui.py`
 - Create: `tests/test_depth_webui.py`
 
 **Interfaces:**
@@ -428,7 +428,7 @@ git commit -m "feat: render depth map videos"
 ```python
 import unittest
 
-from cineblur.webui import build_depth_cfg, default_output
+from cinedit.webui import build_depth_cfg, default_output
 
 
 class DepthWebUITests(unittest.TestCase):
@@ -480,7 +480,7 @@ Expected: 2 tests pass.
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add cineblur/preview.py cineblur/webui.py tests/test_depth_webui.py
+git add cinedit/preview.py cinedit/webui.py tests/test_depth_webui.py
 git commit -m "feat: add depth preview and job routing"
 ```
 
@@ -489,14 +489,14 @@ git commit -m "feat: add depth preview and job routing"
 ### Task 6: Add Left Mode Rail And Depth Inspector
 
 **Files:**
-- Modify: `cineblur/ui.html`
+- Modify: `cinedit/ui.html`
 - Modify: `README.md`
 
 **Interfaces:**
 - Consumes: API mode `depth` and depth preview response.
 - Produces:
   - `S.processMode` with `blur` or `depth`
-  - `setProcessMode(mode)` and persisted `cineblur.mode`
+  - `setProcessMode(mode)` and persisted `cinedit.mode`
   - separate blur/depth parameter panels
   - mode-specific view labels and output suffix
 
@@ -505,7 +505,7 @@ git commit -m "feat: add depth preview and job routing"
 Run a Tabbit program against the source server:
 
 ```javascript
-await page.goto("http://127.0.0.1:8863/?open=E%3A%5Cworkbuddy%5C2026-10-27-12-52-57%5Ccineblur%5Cout%5Cdemo_src.mp4");
+await page.goto("http://127.0.0.1:8863/?open=E%3A%5Cworkbuddy%5C2026-10-27-12-52-57%5Ccinedit%5Cout%5Cdemo_src.mp4");
 await expect(page.getByRole("button", {name: "深度图"})).toBeVisible();
 await page.getByRole("button", {name: "深度图"}).click();
 await expect(page.locator("#depthPanel")).toBeVisible();
@@ -531,7 +531,7 @@ Use the existing linear SVG icon family. Desktop rail width is 72px; at `max-wid
 - [ ] **Step 3: Add mode state and panel switching**
 
 ```javascript
-const PROCESS_STORAGE = "cineblur.mode";
+const PROCESS_STORAGE = "cinedit.mode";
 S.processMode = localStorage.getItem(PROCESS_STORAGE) || "blur";
 
 function setProcessMode(mode){
@@ -578,7 +578,7 @@ Expected: rail visible, depth panel switches correctly, view labels update, no o
 - [ ] **Step 7: Commit**
 
 ```powershell
-git add cineblur/ui.html README.md
+git add cinedit/ui.html README.md
 git commit -m "feat: add depth mode workspace"
 ```
 
@@ -587,13 +587,13 @@ git commit -m "feat: add depth mode workspace"
 ### Task 7: Package, Benchmark, And Verify Offline
 
 **Files:**
-- Modify: `CineBlur.spec`
+- Modify: `CineEdit.spec`
 - Modify: `README.md`
 - Create: `out/depth_benchmark.txt`
 
 **Interfaces:**
 - Consumes: model assets, Transformers, existing PyInstaller build.
-- Produces: offline `dist/CineBlur` and measured performance data.
+- Produces: offline `dist/CineEdit` and measured performance data.
 
 - [ ] **Step 1: Update PyInstaller data collection**
 
@@ -605,7 +605,7 @@ from PyInstaller.utils.hooks import collect_all
 datas = [
     ("assets", "assets"),
     ("assets/weights/depth_anything_v2_small", "assets/weights/depth_anything_v2_small"),
-    ("cineblur/ui.html", "cineblur"),
+    ("cinedit/ui.html", "cinedit"),
 ]
 
 tmp_ret = collect_all("transformers")
@@ -619,10 +619,10 @@ hiddenimports += tmp_ret[2]
 Run:
 
 ```powershell
-.venv\Scripts\python.exe -m PyInstaller CineBlur.spec --noconfirm --clean
+.venv\Scripts\python.exe -m PyInstaller CineEdit.spec --noconfirm --clean
 ```
 
-Expected: build completes and `dist/CineBlur/CineBlur.exe` starts.
+Expected: build completes and `dist/CineEdit/CineEdit.exe` starts.
 
 - [ ] **Step 3: Verify offline model loading**
 
@@ -653,8 +653,8 @@ Run:
 
 ```powershell
 .venv\Scripts\python.exe -m unittest discover -s tests -v
-.venv\Scripts\python.exe -m compileall -q cineblur tests
-node -e "const fs=require('fs');const s=fs.readFileSync('cineblur/ui.html','utf8');const m=s.match(/<script>([\s\S]*)<\/script>/);new Function(m[1]);console.log('JS_SYNTAX_OK')"
+.venv\Scripts\python.exe -m compileall -q cinedit tests
+node -e "const fs=require('fs');const s=fs.readFileSync('cinedit/ui.html','utf8');const m=s.match(/<script>([\s\S]*)<\/script>/);new Function(m[1]);console.log('JS_SYNTAX_OK')"
 ```
 
 Expected: all tests pass, Python compiles, JavaScript syntax passes.
@@ -662,7 +662,7 @@ Expected: all tests pass, Python compiles, JavaScript syntax passes.
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add CineBlur.spec README.md out/depth_benchmark.txt
+git add CineEdit.spec README.md out/depth_benchmark.txt
 git commit -m "build: package and benchmark depth mode"
 ```
 

@@ -22,11 +22,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import evaluate as ev                                    # noqa: E402
-from cineblur.blur import render_frame                   # noqa: E402
-from cineblur.config import BlurConfig                   # noqa: E402
-from cineblur.flow import FlowEngine                     # noqa: E402
-from cineblur.imageops import srgb_to_linear             # noqa: E402
-from cineblur.pipeline import MotionBlurRenderer         # noqa: E402
+from cinedit.blur import render_frame                   # noqa: E402
+from cinedit.config import BlurConfig                   # noqa: E402
+from cinedit.flow import FlowEngine                     # noqa: E402
+from cinedit.imageops import srgb_to_linear             # noqa: E402
+from cinedit.pipeline import MotionBlurRenderer         # noqa: E402
 
 OUT = ev.OUT
 SCALES = [0.35, 0.5, 0.7, 1.0]
@@ -54,7 +54,7 @@ def quality_table(src, gt_path):
 
 
 def timing_table():
-    from cineblur.media import Decoder
+    from cinedit.media import Decoder
     with Decoder(BENCH_1080, 1920, 1080) as d:
         a, b, c = d.read(), d.read(), d.read()
 

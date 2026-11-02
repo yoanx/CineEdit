@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import torch
 
-from cineblur.video_depth_engine import VideoDepthEngine
+from cinedit.video_depth_engine import VideoDepthEngine
 
 
 class FakeVideoModel:

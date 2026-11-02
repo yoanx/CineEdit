@@ -1,6 +1,6 @@
 # Third-Party Notices
 
-CineBlur 的源代码使用 MIT License。项目依赖、模型权重和可选分发组件仍受各自
+CineEdit 的源代码使用 MIT License。项目依赖、模型权重和可选分发组件仍受各自
 许可证约束。本文档用于说明主要第三方组件，不替代各项目发布的完整许可证文本。
 
 ## Runtime dependencies
@@ -33,7 +33,7 @@ ffmpeg version N-128100-gceb466cbcd-20261026
 
 该构建受 GNU General Public License version 3 约束。发布包含该二进制的安装包时，
 需要同时满足 FFmpeg 及其内置第三方库的许可证要求，包括提供相应许可证文本、
-版权信息、构建配置和对应源码的获取方式。不要把这些义务与 CineBlur 自身的 MIT
+版权信息、构建配置和对应源码的获取方式。不要把这些义务与 CineEdit 自身的 MIT
 许可证混为一谈。
 
 参考资料：
@@ -51,7 +51,7 @@ ffmpeg version N-128100-gceb466cbcd-20261026
 ## Video Depth Anything Small
 
 `Video-Depth-Anything-Small` 的推理代码和模型权重受 Apache License 2.0 约束。
-项目内 vendored 代码位于 `cineblur/video_depth_anything/`，许可证文本随该目录
+项目内 vendored 代码位于 `cinedit/video_depth_anything/`，许可证文本随该目录
 一并分发。模型权重位于 `assets/weights/video_depth_anything_vits/`。
 
 ## System components

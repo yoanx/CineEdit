@@ -1,0 +1,2994 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CineEdit</title>
+<style>
+/* ── 设计变量 ─────────────────────────────────────────────
+   单一强调色（陶土红），其余靠字重与留白建立层级。
+   所有间距走 4px 网格：4 / 8 / 12 / 16 / 20 / 24 / 32。      */
+:root{
+  --paper:#f7f5f1;
+  --surface:#fcfbf8;
+  --sunken:#efebe2;
+  --stage:#eae6dd;
+  --ink:#1a1916;
+  --ink-2:#57534b;
+  --ink-3:#928d82;
+  --rule:#e4e0d7;
+  --rule-2:#d6d1c6;
+  --accent:#b1502f;
+  --accent-w:#f4e5df;
+  --ok:#3d6b4c;
+  --warn:#a4671c;
+  --err:#a33a2c;
+  --focus:0 0 0 3px rgba(26,25,22,.16);
+  --ease:cubic-bezier(.22,1,.36,1);
+  --r:6px;
+  --rail:340px;
+  --mode-rail:72px;
+  --h-top:56px;--h-bar:40px;--h-time:78px;--pad:24px;
+  --mono:"Cascadia Mono","Consolas",ui-monospace,SFMono-Regular,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{
+  font:12.5px/1.55 "Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",system-ui,sans-serif;
+  color:var(--ink);background:var(--paper);overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  user-select:none;
+}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:none;box-shadow:var(--focus)}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+
+/* ── 骨架 ─────────────────────────────────────────────── */
+.app{display:grid;grid-template-rows:56px 1fr;height:100vh;height:100dvh}
+
+/* ── 顶栏 ─────────────────────────────────────────────── */
+.topbar{
+  display:flex;align-items:center;gap:12px;padding:0 20px;
+  background:var(--surface);border-bottom:1px solid var(--rule);
+  z-index:20;min-width:0;
+}
+.brand{display:flex;align-items:center;gap:9px;flex:none}
+.mark{
+  width:22px;height:22px;border-radius:5px;flex:none;
+  background:#2a2620;
+  position:relative;overflow:hidden;
+}
+.mark::before{
+  content:"";position:absolute;left:4px;top:9px;width:9px;height:4px;border-radius:1px;
+  background:#f6f3ec;
+}
+.mark::after{
+  content:"";position:absolute;left:4px;top:10px;width:3px;height:2px;border-radius:1px;
+  background:#f6f3ec;
+}
+.brand b{font-size:13.5px;font-weight:600;letter-spacing:.01em;display:block;line-height:1.1}
+.brand small{font-size:9.5px;letter-spacing:.16em;color:var(--ink-3);display:block}
+
+.chip{
+  display:flex;align-items:center;gap:8px;min-width:0;
+  padding:5px 10px;border:1px solid var(--rule);border-radius:var(--r);
+  background:var(--paper);color:var(--ink-2);font-size:11.5px;
+}
+.chip b{font-weight:500;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:26vw}
+.chip span{color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip.empty{color:var(--ink-3);border-style:dashed}
+.spacer{flex:1;min-width:8px}
+
+.tag-gpu{
+  display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--ink-3);
+  white-space:nowrap;padding-right:4px;
+}
+.tag-gpu i{width:6px;height:6px;border-radius:50%;background:var(--rule-2);flex:none}
+.tag-gpu.on i{background:var(--ok);box-shadow:0 0 0 3px rgba(61,107,76,.14)}
+
+.btn{
+  border:1px solid transparent;border-radius:var(--r);padding:7px 14px;
+  font-size:12px;font-weight:500;letter-spacing:.01em;
+  transition:background .15s var(--ease),border-color .15s var(--ease),
+             color .15s var(--ease),opacity .15s var(--ease);
+  white-space:nowrap;
+}
+.btn.ghost{background:transparent;border-color:var(--rule);color:var(--ink-2)}
+.btn.ghost:hover{background:var(--paper);border-color:var(--rule-2);color:var(--ink)}
+.btn.solid{background:var(--ink);color:#faf7f1}
+.btn.solid:hover{background:#000}
+.btn.solid:disabled,.btn.ghost:disabled{opacity:.35;cursor:default}
+.btn.block{display:block;width:100%;padding:9px 14px}
+.btn.sm{padding:5px 10px;font-size:11px}
+
+/* ── 主区 ─────────────────────────────────────────────── */
+.workspace{display:grid;grid-template-columns:var(--mode-rail) minmax(0,1fr) var(--rail);
+  min-height:0;overflow:hidden}
+
+/* 模式栏 */
+.mode-rail{
+  display:flex;flex-direction:column;gap:8px;min-width:0;
+  padding:12px 8px;background:#121214;border-right:1px solid var(--rule);
+}
+.mode-btn{
+  width:100%;min-height:64px;padding:9px 4px;border:1px solid transparent;
+  border-radius:var(--r-sm);background:transparent;color:var(--ink-3);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  font-size:11px;line-height:1.2;text-align:center;white-space:normal;
+  transition:background .18s var(--ease),border-color .18s var(--ease),color .18s var(--ease);
+}
+.mode-btn:hover{background:#1d1d20;border-color:var(--rule);color:var(--ink)}
+.mode-btn:disabled{opacity:.45;cursor:default}
+.mode-btn.on{
+  background:#232326;border-color:var(--rule-2);color:var(--ink);font-weight:600;
+  box-shadow:inset 2px 0 0 var(--accent);
+}
+.mode-btn .icon{width:20px;height:20px}
+.mode-btn span{max-width:100%;overflow-wrap:anywhere}
+
+.model-state{
+  margin:8px 0 2px;padding:8px 10px;border:1px solid rgba(170,65,45,.35);
+  border-radius:var(--r-sm);background:rgba(170,65,45,.07);
+  color:var(--err);font-size:11.5px;line-height:1.45;
+}
+.source-warning{
+  display:grid;gap:8px;margin:8px 0 2px;padding:9px 10px;
+  border:1px solid rgba(164,103,28,.32);border-radius:var(--r-sm);
+  background:rgba(164,103,28,.07);color:var(--ink-2);
+  font-size:11.5px;line-height:1.45;
+}
+.source-warning .btn{justify-self:start;color:var(--warn);border-color:rgba(164,103,28,.35)}
+.source-warning .btn:hover{background:rgba(164,103,28,.08);border-color:rgba(164,103,28,.55)}
+
+/* 舞台 */
+.stage{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--stage)}
+.stage-bar{
+  height:40px;flex:none;display:flex;align-items:center;gap:10px;
+  padding:0 16px;border-bottom:1px solid rgba(26,25,22,.07);
+  background:rgba(251,250,247,.5);
+}
+.seg{display:inline-flex;background:var(--sunken);border-radius:var(--r);padding:2px;gap:2px}
+.seg button{
+  border:0;background:none;font-size:11.5px;color:var(--ink-2);
+  padding:4px 11px;border-radius:4px;transition:all .14s var(--ease);
+}
+.seg button:hover{color:var(--ink)}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(26,25,22,.1)}
+.stage-meta{font-size:10.5px;color:var(--ink-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.viewport{
+  position:relative;flex:1;min-height:0;display:grid;place-items:center;
+  padding:24px;overflow:hidden;
+}
+
+/* 空状态 */
+.empty{text-align:center;max-width:340px}
+.empty h2{font-size:15px;font-weight:600;margin-bottom:6px;letter-spacing:.01em}
+.empty p{font-size:12px;color:var(--ink-3);line-height:1.7}
+.empty .btn{margin-top:18px}
+.recent{margin-top:26px;text-align:left}
+.recent h3{
+  font-size:9.5px;letter-spacing:.16em;color:var(--ink-3);
+  font-weight:600;margin-bottom:8px;
+}
+.recent button{
+  display:block;width:100%;text-align:left;border:0;background:none;
+  padding:5px 8px;border-radius:4px;font-size:11.5px;color:var(--ink-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  transition:background .12s var(--ease),color .12s var(--ease);
+}
+.recent button:hover{background:var(--surface);color:var(--ink)}
+
+/* 画面 */
+.frame{
+  position:relative;line-height:0;background:#0d0c0a;
+  border:1px solid rgba(26,25,22,.16);
+  box-shadow:0 1px 2px rgba(26,25,22,.06),0 12px 34px -18px rgba(26,25,22,.4);
+  max-width:100%;
+  max-height:calc(100vh - var(--h-top) - var(--h-bar) - var(--h-time) - var(--pad) * 2);
+  max-height:calc(100dvh - var(--h-top) - var(--h-bar) - var(--h-time) - var(--pad) * 2);
+}
+.frame img{
+  display:block;max-width:100%;
+  max-height:calc(100vh - var(--h-top) - var(--h-bar) - var(--h-time) - var(--pad) * 2);
+  max-height:calc(100dvh - var(--h-top) - var(--h-bar) - var(--h-time) - var(--pad) * 2);
+  object-fit:contain;
+}
+.frame img.over{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+.frame[data-mode="orig"] .over,
+.frame[data-mode="blur"] .base{visibility:hidden}
+.badge{
+  position:absolute;top:9px;font-size:9px;letter-spacing:.14em;font-weight:600;
+  color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.7);pointer-events:none;
+  transition:opacity .15s var(--ease);
+}
+.badge.l{left:11px}.badge.r{right:11px}
+.frame[data-mode="orig"] .badge.r,
+.frame[data-mode="blur"] .badge.l{opacity:0}
+
+.wipe{position:absolute;top:0;bottom:0;left:50%;width:2px;margin-left:-1px;
+  background:rgba(255,255,255,.94);cursor:ew-resize;
+  box-shadow:0 0 0 1px rgba(0,0,0,.18)}
+.wipe::after{
+  content:"";position:absolute;top:50%;left:50%;width:26px;height:26px;
+  margin:-13px 0 0 -13px;border-radius:50%;background:rgba(251,250,247,.96);
+  border:1px solid rgba(26,25,22,.18);box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+.frame[data-mode="orig"] .wipe,.frame[data-mode="blur"] .wipe{display:none}
+
+/* 加载指示 */
+.spin{
+  position:absolute;top:14px;left:50%;transform:translate(-50%,-8px);
+  display:flex;align-items:center;gap:7px;
+  font-size:10.5px;letter-spacing:.06em;color:var(--ink-2);
+  background:rgba(251,250,247,.94);border:1px solid var(--rule);
+  border-radius:100px;padding:4px 11px 4px 9px;
+  opacity:0;pointer-events:none;transition:opacity .18s var(--ease),transform .18s var(--ease);
+  z-index:5;
+}
+.spin.on{opacity:1;transform:translate(-50%,0)}
+.spin i{
+  width:9px;height:9px;border-radius:50%;border:1.5px solid var(--rule-2);
+  border-top-color:var(--accent);animation:rot .7s linear infinite;
+}
+@keyframes rot{to{transform:rotate(360deg)}}
+
+/* ── 时间轴 ───────────────────────────────────────────── */
+.timeline{flex:none;background:var(--surface);border-top:1px solid var(--rule);padding:10px 16px 8px}
+.track{
+  position:relative;height:26px;border-radius:4px;background:var(--sunken);
+  cursor:pointer;overflow:hidden;touch-action:none;
+}
+.track .ticks{
+  position:absolute;inset:0;
+  background-image:repeating-linear-gradient(90deg,rgba(26,25,22,.13) 0 1px,transparent 1px 100%);
+  background-size:calc(100% / 12) 100%;opacity:.55;
+}
+.track .band{
+  position:absolute;top:0;bottom:0;
+  background:rgba(177,80,47,.13);
+  border-left:1px solid rgba(177,80,47,.42);border-right:1px solid rgba(177,80,47,.42);
+}
+.track .run{position:absolute;top:0;bottom:0;left:0;width:0;
+  background:rgba(26,25,22,.1);border-right:1px solid rgba(26,25,22,.35);
+  transition:width .25s linear}
+.track .head{position:absolute;top:0;bottom:0;width:1px;background:var(--ink);
+  box-shadow:0 0 0 1px rgba(251,250,247,.7)}
+.track .head::before{
+  content:"";position:absolute;top:0;left:50%;width:9px;height:9px;margin-left:-4.5px;
+  background:var(--ink);border-radius:0 0 3px 3px;
+}
+.handle{
+  position:absolute;top:0;bottom:0;width:11px;cursor:ew-resize;z-index:3;
+  display:grid;place-items:center;
+}
+.handle::after{
+  content:"";width:5px;height:13px;border-radius:2px;background:rgba(177,80,47,.55);
+  transition:background .14s var(--ease),height .14s var(--ease);
+}
+.handle:hover::after{background:var(--accent);height:17px}
+
+.transport{display:flex;align-items:center;gap:14px;margin-top:9px}
+.tbtn{
+  width:24px;height:24px;border:0;background:none;color:var(--ink-2);
+  border-radius:4px;font-size:14px;line-height:1;display:grid;place-items:center;
+  transition:background .12s var(--ease),color .12s var(--ease);
+}
+.tbtn:hover{background:var(--sunken);color:var(--ink)}
+.tc{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.tc b{color:var(--ink);font-weight:500}
+.tips{font-size:10px;color:var(--ink-3);letter-spacing:.02em;white-space:nowrap}
+.tips kbd{
+  font:inherit;font-family:var(--mono);font-size:9.5px;padding:1px 4px;
+  border:1px solid var(--rule-2);border-radius:3px;color:var(--ink-3);
+  background:var(--paper);
+}
+
+/* ── 参数栏 ───────────────────────────────────────────── */
+.inspector{
+  display:flex;flex-direction:column;min-height:0;min-width:0;
+  background:var(--surface);border-left:1px solid var(--rule);
+}
+.insp-head{
+  flex:none;height:36px;display:flex;align-items:center;justify-content:space-between;
+  padding:0 18px;border-bottom:1px solid var(--rule);
+}
+.insp-head b{font-size:10px;letter-spacing:.16em;color:var(--ink-3);font-weight:600}
+.insp-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.insp-body::-webkit-scrollbar{width:10px}
+.insp-body::-webkit-scrollbar-thumb{background:var(--rule-2);border-radius:5px;
+  border:3px solid var(--surface)}
+
+.sec{padding:11px 18px;border-bottom:1px solid var(--rule)}
+.sec-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sec-h span{font-size:9.5px;letter-spacing:.15em;color:var(--ink-3);font-weight:600}
+.sec-h em{font-style:normal;font-size:10px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* 快门角 */
+.angle{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:7px}
+.angle b{font-size:24px;font-weight:500;letter-spacing:-.035em;line-height:.95;
+  font-variant-numeric:tabular-nums}
+.angle b small{font-size:13px;color:var(--ink-3);font-weight:400;margin-left:1px}
+.angle em{font-style:normal;font-size:10.5px;color:var(--ink-3);padding-bottom:3px}
+.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}
+.presets button{
+  border:1px solid var(--rule);background:var(--paper);border-radius:5px;
+  padding:3px 0;font-size:10.5px;color:var(--ink-2);
+  transition:all .14s var(--ease);
+}
+.presets button:hover{border-color:var(--rule-2);color:var(--ink)}
+.presets button.on{
+  background:var(--accent-w);border-color:rgba(177,80,47,.4);color:var(--accent);
+  font-weight:500;
+}
+
+/* 字段 */
+.field{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.field label{font-size:11.5px;color:var(--ink-2)}
+.field .v{font-size:11.5px;color:var(--ink);font-variant-numeric:tabular-nums;
+  font-family:var(--mono);font-size:11px}
+.field + input[type=range]{margin-bottom:8px}
+.field + input[type=range]:last-child{margin-bottom:0}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:14px;
+  background:transparent;cursor:pointer;display:block;
+}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--rule-2);border-radius:1px}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:11px;height:11px;margin-top:-4.5px;border-radius:50%;
+  background:var(--ink);border:0;transition:transform .12s var(--ease);
+}
+input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.18)}
+input[type=range]:focus-visible{box-shadow:none}
+input[type=range]:focus-visible::-webkit-slider-thumb{box-shadow:var(--focus)}
+
+select.inline{
+  -webkit-appearance:none;appearance:none;border:1px solid transparent;
+  background:transparent;font-size:11.5px;color:var(--ink);text-align:right;
+  cursor:pointer;padding:3px 16px 3px 6px;border-radius:5px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'><path d='M0 0l4 4 4-4' fill='none' stroke='%238c8677' stroke-width='1.1'/></svg>");
+  background-repeat:no-repeat;background-position:right 4px center;
+  transition:background-color .13s var(--ease),border-color .13s var(--ease);
+}
+select.inline:hover{background-color:var(--paper);border-color:var(--rule)}
+select.inline option{background:var(--surface);color:var(--ink)}
+select.inline.wide{width:100%;text-align:left;border-color:var(--rule);
+  background-color:var(--paper);padding:4px 16px 4px 8px}
+
+.switch{display:flex;align-items:center;justify-content:space-between;
+  gap:10px;margin-top:7px;cursor:pointer}
+.switch>div{min-width:0}
+.switch span{font-size:11.5px;color:var(--ink-2);display:block}
+.switch small{display:block;font-size:10px;color:var(--ink-3);line-height:1.4;margin-top:1px}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch i{
+  position:relative;width:29px;height:16px;border-radius:9px;flex:none;
+  background:var(--rule-2);transition:background .16s var(--ease);
+}
+.switch i::after{
+  content:"";position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;
+  background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.22);
+  transition:transform .16s var(--ease);
+}
+.switch input:checked + i{background:var(--ink)}
+.switch input:checked + i::after{transform:translateX(13px)}
+.switch input:focus-visible + i{box-shadow:var(--focus)}
+
+/* 区间 */
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pair label{display:block;font-size:10px;color:var(--ink-3);margin-bottom:3px}
+.pair .tin{
+  width:100%;border:0;border-bottom:1px solid var(--rule-2);background:transparent;
+  padding:3px 0;font-size:11.5px;line-height:1.5;color:var(--ink);
+  font-family:var(--mono);font-variant-numeric:tabular-nums;outline:none;
+  transition:border-color .14s var(--ease);
+}
+.pair .tin:focus{border-bottom-color:var(--ink)}
+.pair .tin::-webkit-outer-spin-button,
+.pair .tin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+
+.path{display:flex;gap:6px;align-items:center;margin-top:8px}
+.path input{
+  flex:1;min-width:0;border:0;border-bottom:1px solid var(--rule-2);background:transparent;
+  padding:4px 0;font-size:11px;color:var(--ink-2);outline:none;
+  transition:border-color .14s var(--ease);
+}
+.path input:focus{border-bottom-color:var(--ink)}
+
+/* 底栏 */
+.insp-foot{flex:none;padding:11px 18px 12px;border-top:1px solid var(--rule);background:var(--surface)}
+.prog{height:2px;background:var(--rule);border-radius:1px;overflow:hidden;margin-bottom:8px}
+.prog i{display:block;height:2px;width:0;background:var(--accent);
+  transition:width .3s var(--ease)}
+.state{display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  margin-bottom:7px;font-size:11px;color:var(--ink-3);min-height:15px}
+.state b{color:var(--ink-2);font-weight:500}
+.state .right{font-variant-numeric:tabular-nums;white-space:nowrap}
+.breakdown{
+  font-size:10px;color:var(--ink-3);font-family:var(--mono);
+  margin-bottom:8px;line-height:1.5;display:none;
+}
+.breakdown.on{display:block}
+
+.logs{margin-top:8px;border-top:1px solid var(--rule);padding-top:7px}
+.logs summary{
+  list-style:none;font-size:9.5px;letter-spacing:.14em;color:var(--ink-3);
+  cursor:pointer;display:flex;align-items:center;justify-content:space-between;
+  text-transform:uppercase;
+}
+.logs summary::-webkit-details-marker{display:none}
+.logs summary::after{content:"+";font-size:12px;letter-spacing:0}
+.logs[open] summary::after{content:"–"}
+.logs pre{
+  height:96px;overflow:auto;margin-top:6px;
+  font:10px/1.7 var(--mono);color:var(--ink-3);white-space:pre-wrap;
+}
+.logs pre::-webkit-scrollbar{width:6px}
+.logs pre::-webkit-scrollbar-thumb{background:var(--rule-2);border-radius:3px}
+
+/* ── 文件选择 ─────────────────────────────────────────── */
+.modal{position:fixed;inset:0;display:none;place-items:center;z-index:80;
+  background:rgba(26,25,22,.26);backdrop-filter:blur(2px)}
+.modal.on{display:grid}
+.sheet{
+  width:min(640px,92vw);max-height:min(560px,80vh);display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--rule);border-radius:10px;
+  box-shadow:0 32px 80px -24px rgba(26,25,22,.45);overflow:hidden;
+}
+.sheet-hd{display:flex;align-items:baseline;gap:10px;padding:14px 18px;
+  border-bottom:1px solid var(--rule);flex:none}
+.sheet-hd b{font-size:12px;font-weight:600}
+.sheet-hd span{font-size:10.5px;color:var(--ink-3);font-family:var(--mono);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:left}
+.sheet-ls{flex:1;min-height:0;overflow:auto;padding:6px}
+.sheet-ls div{
+  padding:6px 10px;border-radius:5px;cursor:pointer;font-size:12px;color:var(--ink-2);
+  display:flex;align-items:center;gap:7px;
+  transition:background .12s var(--ease),color .12s var(--ease);
+}
+.sheet-ls div:hover{background:var(--paper);color:var(--ink)}
+.sheet-ls div.f{color:var(--ink)}
+.sheet-ls div i{font-style:normal;font-size:10px;color:var(--ink-3);width:11px;flex:none}
+.sheet-ft{display:flex;justify-content:flex-end;gap:8px;padding:11px 18px;
+  border-top:1px solid var(--rule);flex:none}
+.settings-panel{
+  width:min(780px,94vw);height:min(680px,86vh);display:flex;flex-direction:column;
+  background:var(--surface);border:1px solid var(--rule);border-radius:12px;
+  box-shadow:0 32px 80px -24px rgba(0,0,0,.72);overflow:hidden;
+}
+.settings-head{
+  flex:none;display:flex;align-items:center;gap:16px;padding:18px 22px;
+  border-bottom:1px solid var(--rule);
+}
+.settings-head>div{min-width:0}
+.settings-head b{display:block;font-size:15px;font-weight:600}
+.settings-head small{display:block;margin-top:2px;font-size:11.5px;color:var(--ink-3)}
+.settings-head .icon-btn{margin-left:auto;flex:none}
+.settings-body{display:grid;grid-template-columns:176px minmax(0,1fr);min-height:0;flex:1}
+.settings-nav{
+  display:flex;flex-direction:column;gap:4px;padding:12px;
+  border-right:1px solid var(--rule);background:var(--sunken);
+}
+.settings-nav button{
+  min-height:40px;padding:0 12px;border:1px solid transparent;border-radius:8px;
+  background:transparent;color:var(--ink-3);text-align:left;font-size:12.5px;
+}
+.settings-nav button:hover{background:#1d1d20;color:var(--ink)}
+.settings-nav button.on{
+  background:#232326;border-color:var(--rule-2);color:var(--ink);font-weight:600;
+}
+.settings-content{min-width:0;overflow:auto;padding:6px 22px 18px;scrollbar-color:var(--rule-2) transparent}
+.settings-sec h3{font-size:13px;font-weight:600;margin:18px 0 4px}
+.settings-sec>p{font-size:11.5px;color:var(--ink-3);line-height:1.55;margin-bottom:6px}
+.settings-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+  gap:20px;padding:14px 0;border-bottom:1px solid var(--rule);
+}
+.settings-row:last-child{border-bottom:0}
+.settings-row label,.settings-row strong{display:block;font-size:12.5px;font-weight:500;color:var(--ink-2)}
+.settings-row small{display:block;margin-top:3px;font-size:11px;line-height:1.45;color:var(--ink-3)}
+.settings-row select{min-width:172px}
+.settings-row .switch{margin:0;min-width:40px}
+.settings-row .switch i{
+  border:1px solid rgba(255,255,255,.2);background:#2b2b2e;
+}
+.settings-foot{
+  flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 22px;border-top:1px solid var(--rule);
+}
+.hide-shortcuts .tips{display:none!important}
+@media (max-width:680px){
+  .settings-panel{width:96vw;height:min(760px,92vh)}
+  .settings-head{padding:15px 16px}
+  .settings-body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}
+  .settings-nav{
+    flex-direction:row;overflow-x:auto;padding:8px;border-right:0;
+    border-bottom:1px solid var(--rule);
+  }
+  .settings-nav button{min-width:76px;text-align:center;padding:0 10px}
+  .settings-content{padding:4px 16px 14px}
+  .settings-row{grid-template-columns:1fr;gap:9px}
+  .settings-row select{width:100%;min-width:0}
+  .settings-foot{padding:12px 16px}
+}
+
+/* ── 提示 ─────────────────────────────────────────────── */
+.toasts{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;gap:8px;z-index:90;pointer-events:none}
+.toast{
+  background:var(--ink);color:#faf7f1;font-size:11.5px;padding:8px 14px;border-radius:100px;
+  box-shadow:0 8px 24px -8px rgba(26,25,22,.6);
+  animation:up .22s var(--ease);max-width:70vw;
+}
+.toast.bad{background:var(--err)}
+@keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* ── 响应式 ───────────────────────────────────────────── */
+@media (max-width:1180px){
+  :root{--rail:304px}
+  .sec{padding:13px 16px}
+  .angle b{font-size:26px}
+}
+@media (max-width:980px){
+  :root{--mode-rail:56px}
+  .workspace{grid-template-columns:var(--mode-rail) minmax(0,1fr)}
+  .mode-rail{padding:8px 6px}
+  .mode-btn{min-height:48px;padding:0;gap:0}
+  .mode-btn span{
+    position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0,0,0,0);white-space:nowrap;border:0;
+  }
+  .inspector{
+    position:fixed;top:0;right:0;bottom:0;width:min(360px,88vw);z-index:70;
+    border-left:1px solid var(--rule);box-shadow:-20px 0 60px -30px rgba(26,25,22,.5);
+    transform:translateX(101%);transition:transform .26s var(--ease);
+  }
+  .inspector.open{transform:none}
+  .scrim{
+    position:fixed;inset:0;background:rgba(26,25,22,.2);z-index:65;
+    opacity:0;pointer-events:none;transition:opacity .22s var(--ease);
+  }
+  .scrim.on{opacity:1;pointer-events:auto}
+  .rail-toggle{display:inline-flex!important}
+  .tag-gpu{display:none}
+}
+@media (max-width:680px){
+  :root{--pad:12px;--h-time:72px}
+  .topbar{padding:0 12px;gap:8px}
+  .brand small{display:none}
+  .chip b{max-width:34vw}
+  .stage-bar{padding:0 10px;gap:6px}
+  .stage-meta{display:none}
+  .viewport{padding:12px}
+  .timeline{padding:8px 10px 6px}
+  .tips{display:none}
+}
+@media (min-width:981px){.scrim{display:none}}
+.rail-toggle{display:none}
+/* ═══════════════════════════════════════════════════════
+   主题：编辑台 × 光谱 × 暗房
+   ───────────────────────────────────────────────────────
+   排版沿用编辑台：衬线标题、极细分割线、下划线控件、
+   图注式时间码，控件不装在盒子里。
+   底色是光谱的深冷黑蓝，两处径向光 + 光谱细线。
+   参数区图标与快门角刻度盘来自暗房。
+   ═══════════════════════════════════════════════════════ */
+:root{
+  --bg:#07080d;
+  --bg-2:#0a0c14;
+  --paper:#07080d;
+  --surface:#0c0f18;
+  --sunken:#0a0c14;
+  --stage:transparent;
+  --ink:#e9edf9;
+  --ink-2:#9aa5c0;
+  --ink-3:#626c86;
+  --rule:rgba(150,175,255,.10);
+  --rule-2:rgba(150,175,255,.24);
+  --accent:#8fb0ff;
+  --accent-w:rgba(143,176,255,.12);
+  --ok:#6ee7b7;
+  --warn:#d8b06a;
+  --err:#f08a9a;
+  --focus:0 0 0 2px var(--accent);
+  --ease:cubic-bezier(.22,1,.36,1);
+  --r:0px;
+  --r-sm:0px;
+  --r-lg:0px;
+  --rail:384px;
+  --mode-rail:88px;
+  --h-top:74px;
+  --h-bar:50px;
+  --h-time:96px;
+  --pad:24px;
+  --mono:"Cascadia Mono","Consolas",ui-monospace,SFMono-Regular,monospace;
+  --serif:Georgia,"Source Han Serif SC","Noto Serif SC","Songti SC",SimSun,serif;
+  --font-ui:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif;
+  --spec:linear-gradient(90deg,#5b8cff,#8f86ff 34%,#a97bff 58%,#e08ad6 78%,#ff8fb8);
+}
+html[lang="en"]{--font-ui:"Segoe UI Variable Text","Segoe UI","Microsoft YaHei UI",sans-serif}
+
+body{
+  font-family:var(--font-ui);font-size:13.5px;line-height:1.6;color:var(--ink);
+  background:
+    radial-gradient(1200px 640px at 5% -18%,rgba(91,140,255,.14),transparent 62%),
+    radial-gradient(1000px 560px at 103% 112%,rgba(169,123,255,.11),transparent 60%),
+    radial-gradient(760px 420px at 48% 122%,rgba(255,143,184,.05),transparent 64%),
+    var(--bg);
+  background-attachment:fixed;
+}
+button,input,select,textarea{font:inherit}
+button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{
+  outline:1px solid var(--accent);outline-offset:3px;box-shadow:none;
+}
+.icon{
+  width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:1.4;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+
+/* ── 顶栏 ─────────────────────────────────────────────── */
+.app{grid-template-rows:var(--h-top) 1fr}
+.topbar{
+  position:relative;padding:0 30px;gap:22px;background:transparent;
+  border-bottom:1px solid var(--rule);
+}
+.topbar::after{
+  content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+  background:var(--spec);opacity:.3;pointer-events:none;
+}
+.brand{gap:13px}
+.mark{
+  width:26px;height:26px;color:var(--accent);flex:none;
+  filter:drop-shadow(0 0 8px rgba(143,176,255,.45));
+  background:none;border:0;border-radius:0;
+}
+.mark::before,.mark::after{display:none}
+.brand>div{display:flex;align-items:baseline;gap:14px}
+.brand b{
+  font-family:var(--serif);font-size:25px;font-weight:400;letter-spacing:-.01em;line-height:1;
+}
+.brand small{
+  display:block;font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--ink-3);
+  padding-left:14px;border-left:1px solid var(--rule-2);margin-top:0;line-height:1.6;
+}
+.chip{
+  padding:0;border:0;border-radius:0;background:transparent;gap:10px;
+  font-size:12px;color:var(--ink-2);
+}
+.chip b{font-weight:400;font-size:12px;color:var(--ink)}
+.chip span{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+.chip.empty{border:0;color:var(--ink-3);background:transparent}
+.tag-gpu{
+  gap:7px;font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;color:var(--ink-3);
+}
+.tag-gpu i{width:5px;height:5px;background:var(--ink-3)}
+.tag-gpu.on i{background:var(--ok);box-shadow:0 0 8px rgba(110,231,183,.8)}
+.lang-switch{padding:0;border:0;background:transparent;gap:12px;border-radius:0}
+.lang-switch button{
+  min-height:0;padding:0 0 2px;border:0;border-bottom:1px solid transparent;border-radius:0;
+  background:transparent;font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;
+  color:var(--ink-3);font-weight:400;
+}
+.lang-switch button:hover{color:var(--ink-2)}
+.lang-switch button.on{background:transparent;color:var(--ink);border-bottom-color:var(--ink);font-weight:400}
+.icon-btn{
+  width:30px;height:30px;min-height:30px;padding:0;border:0;border-radius:0;
+  display:inline-grid;place-items:center;background:transparent;color:var(--ink-3);
+}
+.icon-btn:hover{background:transparent;border:0;color:var(--ink)}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  min-height:0;padding:7px 0;border:0;border-bottom:1px solid var(--rule-2);border-radius:0;
+  background:transparent;color:var(--ink-2);font-size:12px;
+  transition:color .2s var(--ease),border-color .2s var(--ease),background .2s var(--ease);
+}
+.btn:hover{background:transparent;color:var(--ink);border-bottom-color:var(--ink)}
+.btn.ghost{background:transparent;border-color:var(--rule-2);color:var(--ink-2)}
+.btn.ghost:hover{background:transparent;border-color:var(--ink);color:var(--ink)}
+.btn.solid{
+  background:#e9edf9;border:0;color:#0a0e1a;border-radius:0;
+  box-shadow:0 12px 34px -16px rgba(143,176,255,.9);
+}
+.btn.solid:hover{background:#fff;color:#0a0e1a}
+.btn.solid:disabled,.btn.ghost:disabled{opacity:.35;cursor:not-allowed;box-shadow:none}
+.btn.block{display:block;width:100%;padding:13px;font-size:12.5px;letter-spacing:.1em}
+.btn.sm{min-height:0;padding:5px 0;font-size:11.5px}
+
+/* ── 模式栏 ───────────────────────────────────────────── */
+.workspace{grid-template-columns:var(--mode-rail) minmax(0,1fr) var(--rail)}
+.mode-rail{
+  padding:22px 0 0;gap:0;background:transparent;border-right:1px solid var(--rule);
+}
+.mode-btn{
+  position:relative;min-height:0;padding:16px 4px;border:0;border-radius:0;
+  background:transparent;color:var(--ink-3);font-family:var(--serif);font-size:11.5px;
+  line-height:1.25;gap:9px;transition:color .2s var(--ease);
+}
+.mode-btn::before{
+  content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;
+  background:var(--spec);opacity:0;transition:opacity .25s var(--ease);
+}
+.mode-btn:hover{background:transparent;border:0;color:var(--ink-2)}
+.mode-btn.on{
+  background:transparent;border:0;color:var(--ink);font-weight:400;box-shadow:none;
+}
+.mode-btn.on::before{opacity:1}
+.mode-btn.on .icon{color:var(--accent)}
+.mode-btn .icon{width:18px;height:18px}
+.mode-btn:disabled{opacity:.4;cursor:default}
+.model-state{
+  margin:8px 10px 2px;padding:8px 10px;border:1px solid rgba(240,138,154,.3);
+  border-radius:0;background:rgba(240,138,154,.07);color:var(--err);
+  font-size:11px;line-height:1.5;
+}
+.source-warning{
+  display:grid;gap:8px;margin:8px 10px 2px;padding:9px 10px;
+  border:1px solid rgba(216,176,106,.3);border-radius:0;
+  background:rgba(216,176,106,.06);color:var(--ink-2);font-size:11px;line-height:1.5;
+}
+.source-warning .btn{justify-self:start;color:var(--warn);border-color:rgba(216,176,106,.35)}
+.source-warning .btn:hover{background:transparent;border-color:rgba(216,176,106,.6);color:var(--warn)}
+
+/* ── 舞台 ─────────────────────────────────────────────── */
+.stage{background:transparent}
+.stage-bar{
+  height:var(--h-bar);padding:0 30px;gap:22px;background:transparent;
+  border-bottom:1px solid var(--rule);
+}
+.seg{display:flex;gap:20px;padding:0;border:0;background:transparent;border-radius:0}
+.seg button{
+  min-height:0;padding:4px 0;border:0;border-bottom:1px solid transparent;border-radius:0;
+  background:transparent;color:var(--ink-3);font-size:11.5px;font-weight:400;
+  transition:color .2s var(--ease),border-color .2s var(--ease);
+}
+.seg button:hover{color:var(--ink-2)}
+.seg button.on{
+  background:transparent;color:var(--ink);border-bottom-color:var(--accent);
+  font-weight:400;box-shadow:none;
+}
+.stage-meta{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;color:var(--ink-3);
+}
+.viewport{padding:8px 46px 0}
+
+.empty{max-width:380px}
+.empty h2{font-family:var(--serif);font-size:17px;font-weight:400;margin-bottom:8px;letter-spacing:0}
+.empty p{font-size:12.5px;line-height:1.85;color:var(--ink-3)}
+.empty .btn{margin-top:18px}
+.recent{margin-top:30px}
+.recent h3{font-family:var(--mono);font-size:9px;letter-spacing:.16em;margin-bottom:8px;color:var(--ink-3)}
+.recent button{
+  min-height:0;padding:6px 8px;border-radius:0;font-size:12px;color:var(--ink-2);
+}
+.recent button:hover{background:rgba(255,255,255,.035);color:var(--ink)}
+
+.frame{
+  border:1px solid transparent;border-radius:0;background:#0a0a0a;
+  border-image:linear-gradient(140deg,rgba(150,175,255,.45),rgba(169,123,255,.16) 45%,
+    rgba(255,143,184,.3)) 1;
+  box-shadow:0 40px 80px -34px rgba(0,0,0,.95),0 0 80px -28px rgba(91,140,255,.4);
+}
+.badge{
+  top:14px;padding:0;border:0;background:none;border-radius:0;
+  font-family:var(--mono);font-size:9px;letter-spacing:.12em;font-weight:400;
+  color:rgba(233,237,249,.92);text-shadow:0 1px 6px rgba(0,0,0,.9);
+}
+.badge.l{left:14px}
+.badge.r{right:14px;color:#ffd0df}
+.wipe{
+  width:1px;margin-left:0;background:#fff;box-shadow:0 0 12px rgba(150,175,255,.9);
+}
+.wipe::after{
+  width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;
+  background:rgba(9,11,18,.7);border:1px solid rgba(180,200,255,.75);box-shadow:none;
+  background-image:linear-gradient(90deg,transparent 46%,rgba(180,200,255,.9) 46% 54%,
+    transparent 54%);
+}
+.spin{
+  top:16px;padding:6px 14px 6px 10px;border-radius:999px;
+  background:rgba(9,11,18,.92);border:1px solid var(--rule);color:var(--ink-2);
+  font-family:var(--mono);font-size:10px;letter-spacing:.06em;backdrop-filter:blur(8px);
+}
+.spin i{border-color:var(--rule-2);border-top-color:var(--accent)}
+
+/* ── 时间轴 ───────────────────────────────────────────── */
+.timeline{background:transparent;border-top:1px solid var(--rule);padding:14px 30px 16px}
+.track{
+  position:relative;height:30px;border:0;border-radius:0;background:transparent;
+  overflow:visible;
+}
+.track::before{
+  content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:var(--rule-2);
+}
+.track .ticks{display:none}
+.track .band{
+  top:50%;bottom:auto;height:3px;margin-top:-1.5px;
+  background:linear-gradient(90deg,rgba(91,140,255,.3),rgba(169,123,255,.26) 55%,
+    rgba(255,143,184,.22));
+  border-left:1px solid var(--accent);border-right:1px solid rgba(255,143,184,.7);
+}
+.track .run{
+  top:50%;bottom:auto;height:3px;margin-top:-1.5px;left:0;width:0;
+  background:rgba(233,237,249,.16);border-right:1px solid rgba(233,237,249,.45);
+}
+.track .head{width:1px;background:#fff;box-shadow:0 0 12px rgba(150,175,255,.95)}
+.track .head::before{
+  top:-4px;left:-3px;width:7px;height:7px;margin-left:0;border-radius:50%;
+  background:#fff;box-shadow:0 0 12px rgba(150,175,255,.9);
+}
+.handle{
+  width:14px;border:0;background:transparent;padding:0;min-height:0;
+  display:grid;place-items:center;
+}
+.handle::after{
+  width:3px;height:16px;border-radius:2px;background:rgba(143,176,255,.6);
+  transition:background .18s var(--ease),height .18s var(--ease);
+}
+.handle:hover::after,.handle:focus-visible::after{background:var(--accent);height:20px}
+.transport{gap:16px;margin-top:12px}
+.tbtn{
+  width:30px;height:28px;min-height:0;border-radius:0;background:none;
+  color:var(--ink-3);font-size:0;
+}
+.tbtn:hover{background:transparent;color:var(--ink)}
+.tc{font-family:var(--serif);font-size:15px;color:var(--ink-3)}
+.tc b{color:var(--ink);font-weight:400;font-size:19px}
+.tips{font-family:var(--mono);font-size:9px;letter-spacing:.05em;color:var(--ink-3)}
+.tips kbd{
+  display:inline;min-width:0;min-height:0;padding:0 0 1px;font-family:inherit;font-size:9px;
+  border:0;border-bottom:1px solid var(--rule-2);border-radius:0;background:transparent;
+  color:var(--ink-2);
+}
+
+/* ── 参数栏 ───────────────────────────────────────────── */
+.inspector{
+  position:relative;background:linear-gradient(180deg,rgba(13,16,26,.72),rgba(8,10,17,.86));
+  border-left:1px solid var(--rule);backdrop-filter:blur(22px);
+}
+.inspector::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:1px;
+  background:var(--spec);opacity:.3;pointer-events:none;
+}
+.insp-head{
+  height:auto;padding:26px 30px 16px;border-bottom:0;align-items:baseline;
+}
+.insp-head b{
+  font-family:var(--serif);font-size:17px;font-weight:400;letter-spacing:.01em;color:var(--ink);
+}
+.insp-body{scrollbar-color:rgba(150,175,255,.2) transparent}
+.insp-body::-webkit-scrollbar{width:8px}
+.insp-body::-webkit-scrollbar-thumb{
+  background:rgba(150,175,255,.16);border:3px solid transparent;background-clip:padding-box;
+  border-radius:4px;
+}
+
+.sec{padding:0 30px 26px;margin-bottom:24px;border-bottom:1px solid var(--rule)}
+.sec-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}
+.sec-h .t{display:flex;align-items:center;gap:10px;min-width:0}
+.sec-h .t .icon{width:15px;height:15px;color:var(--ink-3);transition:color .2s var(--ease)}
+.sec:hover .t .icon{color:var(--accent)}
+.sec-h span{
+  font-family:var(--serif);font-size:13px;font-weight:400;letter-spacing:.04em;color:var(--ink);
+}
+.sec-h em{
+  font-style:normal;font-family:var(--mono);font-size:9px;letter-spacing:.08em;
+  color:var(--ink-3);white-space:nowrap;
+}
+
+/* 快门角：暗房的弧形刻度盘，弧线改用光谱渐变 */
+.dial-wrap{position:relative;display:grid;place-items:center;margin:-2px 0 10px}
+.dial{width:100%;max-width:206px;overflow:visible}
+.dial-track{fill:none;stroke:var(--rule-2);stroke-width:1.5}
+.dial-fill{
+  fill:none;stroke:url(#dialGrad);stroke-width:2.5;stroke-linecap:round;
+  filter:drop-shadow(0 0 7px rgba(143,176,255,.45));
+  transition:stroke-dasharray .18s var(--ease);
+}
+.dial-tick{stroke:rgba(150,175,255,.24);stroke-width:1}
+.dial-tick.major{stroke:rgba(150,175,255,.55)}
+.dial-val{position:absolute;left:50%;top:58%;transform:translate(-50%,-50%);text-align:center}
+.dial-val b{
+  display:block;font-family:var(--serif);font-size:42px;font-weight:400;line-height:1;
+  letter-spacing:-.02em;
+  background:linear-gradient(180deg,#f4f7ff,#9fb0d8);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.dial-val b small{
+  font-size:20px;vertical-align:super;margin-left:1px;-webkit-text-fill-color:var(--ink-3);
+}
+.dial-val em{
+  display:block;font-style:normal;font-family:var(--mono);font-size:9.5px;
+  color:var(--ink-3);margin-top:7px;letter-spacing:.1em;
+}
+
+.presets{display:flex;gap:22px;margin-top:16px}
+.presets button{
+  min-height:0;padding:0 0 3px;border:0;border-bottom:1px solid transparent;border-radius:0;
+  background:transparent;font-size:11.5px;color:var(--ink-3);
+  transition:color .2s var(--ease),border-color .2s var(--ease);
+}
+.presets button:hover{color:var(--ink-2);border-color:transparent;border-bottom-color:var(--rule-2)}
+.presets button.on{
+  background:transparent;border-color:transparent;border-bottom-color:var(--accent);
+  color:var(--accent);font-weight:400;
+}
+
+.field{display:flex;align-items:baseline;justify-content:space-between;margin:20px 0 2px}
+.field label{font-size:12px;color:var(--ink-2)}
+.field .v{font-family:var(--mono);font-size:11px;color:var(--ink)}
+.field + input[type=range]{margin-bottom:0}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:18px;background:none;
+  cursor:pointer;display:block;
+}
+input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--rule-2);border-radius:0}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:13px;height:13px;border-radius:50%;margin-top:-6px;
+  background:var(--accent);border:2px solid var(--bg);
+  box-shadow:0 0 0 1px var(--accent),0 0 14px rgba(143,176,255,.55);
+  transition:transform .15s var(--ease);
+}
+input[type=range]:hover::-webkit-slider-thumb{transform:scale(1.15)}
+
+select.inline{
+  appearance:none;width:auto;min-height:0;padding:5px 20px 5px 0;font-size:12px;
+  color:var(--ink);border:0;border-bottom:1px solid var(--rule-2);border-radius:0;
+  background-color:transparent;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5'%3E%3Cpath d='M0 0l4 5 4-5' fill='none' stroke='%23626c86'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 2px center;
+  transition:border-color .2s var(--ease);
+}
+select.inline:hover{background-color:transparent;border-bottom-color:var(--accent)}
+select.inline.wide{min-height:0;background-color:transparent;width:100%}
+select option{background:#0c0f18;color:var(--ink)}
+
+.switch{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  min-height:0;margin-top:20px;padding:0;cursor:pointer;
+}
+.switch div span{display:block;font-size:12px;color:var(--ink-2)}
+.switch div small{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.switch input{position:absolute;opacity:0;pointer-events:none}
+.switch i{
+  position:relative;width:16px;height:16px;flex:none;border:1px solid var(--rule-2);
+  border-radius:0;background:transparent;transition:all .18s var(--ease);
+}
+.switch i::after{
+  content:"";position:absolute;left:4px;top:1px;width:5px;height:9px;
+  border:solid #0a0e1a;border-width:0 1.5px 1.5px 0;transform:rotate(42deg);
+  background:none;border-radius:0;box-shadow:none;opacity:0;
+  transition:opacity .15s var(--ease);
+}
+.switch input:checked + i{background:var(--accent);border-color:var(--accent)}
+.switch input:checked + i::after{opacity:1;background:transparent;transform:rotate(42deg)}
+
+.pair{gap:24px;margin-top:22px}
+.pair label{font-size:10px;letter-spacing:.04em;color:var(--ink-3);margin-bottom:6px}
+.pair .tin{
+  min-height:0;padding:5px 0;border:0;border-bottom:1px solid var(--rule-2);border-radius:0;
+  background:transparent;color:var(--ink);font-size:12px;
+}
+.pair .tin:focus{border-bottom-color:var(--accent);outline:none;box-shadow:none}
+.path{gap:16px;margin-top:22px}
+.path input{
+  min-height:0;padding:5px 0;border:0;border-bottom:1px solid var(--rule-2);border-radius:0;
+  background:transparent;color:var(--ink-2);font-size:12px;
+}
+.path input:focus{border-bottom-color:var(--accent);outline:none;box-shadow:none}
+
+.insp-foot{
+  padding:18px 30px 22px;border-top:1px solid var(--rule);background:rgba(6,8,13,.5);
+}
+.prog{height:2px;border-radius:0;background:var(--rule);margin-bottom:12px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--spec);transition:width .2s}
+.state{
+  display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-3);
+}
+.state b{color:var(--ink-2);font-weight:400}
+.breakdown{font-family:var(--mono);font-size:9.5px;color:var(--ink-3);margin-bottom:12px}
+.logs{margin-top:12px;padding-top:12px;border-top:1px solid var(--rule)}
+.logs summary{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--ink-3);cursor:pointer}
+.logs pre{height:112px;font-size:10px;color:var(--ink-3);line-height:1.6}
+.logs pre::-webkit-scrollbar-thumb{background:rgba(150,175,255,.16);border-radius:4px}
+
+/* ── 文件选择 / 设置 ─────────────────────────────────── */
+.modal{background:rgba(4,6,11,.72);backdrop-filter:blur(6px)}
+.sheet{
+  width:min(720px,92vw);max-height:min(640px,84vh);border-radius:0;background:#0b0e16;
+  border:1px solid var(--rule-2);box-shadow:0 40px 90px -30px rgba(0,0,0,.95);
+}
+.sheet-hd{padding:18px 26px;border-bottom:1px solid var(--rule)}
+.sheet-hd b{font-family:var(--serif);font-size:15px;font-weight:400}
+.sheet-hd span{font-family:var(--mono);font-size:10px;color:var(--ink-3)}
+.sheet-ls{padding:8px;scrollbar-color:rgba(150,175,255,.2) transparent}
+.sheet-ls button{
+  display:flex;align-items:center;gap:7px;width:100%;min-height:0;
+  padding:8px 10px;border:0;border-radius:0;background:transparent;
+  color:var(--ink-2);font-size:12px;text-align:left;
+  transition:background .12s var(--ease),color .12s var(--ease);
+}
+.sheet-ls button:hover{background:rgba(255,255,255,.04);color:var(--ink)}
+.sheet-ls button.f{color:var(--ink)}
+.sheet-ls button .icon{color:var(--ink-3)}
+.sheet-ls div{padding:8px 10px;border-radius:0;font-size:12px;color:var(--ink-2)}
+.sheet-ls div:hover{background:rgba(255,255,255,.04);color:var(--ink)}
+.sheet-ft{padding:14px 26px;border-top:1px solid var(--rule)}
+.sheet-ft .btn,.settings-foot .btn{padding:8px 18px}
+
+.settings-panel{
+  width:min(780px,94vw);height:min(680px,86vh);background:#0b0e16;
+  border:1px solid var(--rule-2);border-radius:0;
+  box-shadow:0 40px 90px -30px rgba(0,0,0,.95);
+}
+.settings-head{padding:20px 26px;border-bottom:1px solid var(--rule)}
+.settings-head b{font-family:var(--serif);font-size:17px;font-weight:400}
+.settings-head small{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--ink-3);margin-top:4px;
+}
+.settings-nav{background:rgba(0,0,0,.22);border-right:1px solid var(--rule);padding:14px 10px;gap:2px}
+.settings-nav button{
+  min-height:0;padding:8px 12px;border:0;border-left:2px solid transparent;border-radius:0;
+  background:transparent;color:var(--ink-3);font-size:12px;text-align:left;
+}
+.settings-nav button:hover{background:transparent;color:var(--ink-2)}
+.settings-nav button.on{
+  background:transparent;border:0;border-left:2px solid var(--accent);color:var(--ink);
+  font-weight:400;
+}
+.settings-content{padding:4px 26px 20px;scrollbar-color:rgba(150,175,255,.2) transparent}
+.settings-sec h3{font-family:var(--serif);font-size:14px;font-weight:400;margin:20px 0 4px}
+.settings-sec>p{font-size:11px;color:var(--ink-3);line-height:1.6}
+.settings-row{padding:14px 0;border-bottom:1px solid var(--rule)}
+.settings-row label,.settings-row strong{font-size:12px;font-weight:400;color:var(--ink-2)}
+.settings-row small{font-size:10.5px;color:var(--ink-3);line-height:1.5}
+.settings-row .switch{margin:0;min-width:16px}
+.settings-row .switch i{border:1px solid var(--rule-2);background:transparent}
+.settings-foot{padding:14px 26px;border-top:1px solid var(--rule)}
+
+/* ── 提示 ─────────────────────────────────────────────── */
+.toasts{bottom:calc(var(--h-time) + 18px);gap:8px}
+.toast{
+  background:#0d1019;color:var(--ink);border:1px solid var(--rule-2);border-radius:0;
+  box-shadow:0 20px 40px -20px rgba(0,0,0,.9);font-size:12.5px;
+}
+.toast.bad{background:#1a0f14;border-color:rgba(240,138,154,.4);color:#f3b9c3}
+.scrim{background:rgba(3,5,9,.6)}
+.rail-toggle{display:none}
+::selection{background:rgba(143,176,255,.28);color:#fff}
+
+/* ── 响应式 ───────────────────────────────────────────── */
+@media (max-width:1180px){
+  :root{--rail:340px}
+  .sec{padding:0 24px 24px}
+  .insp-head{padding:22px 24px 14px}
+  .insp-foot{padding:16px 24px 18px}
+}
+@media (max-width:980px){
+  .workspace{grid-template-columns:var(--mode-rail) minmax(0,1fr)}
+  .inspector{
+    width:min(380px,88vw);border-left:1px solid var(--rule-2);border-radius:0;
+    box-shadow:-30px 0 60px -30px rgba(0,0,0,.9);
+    transition:transform .22s var(--ease);
+  }
+  .rail-toggle{display:inline-flex!important}
+  .tag-gpu{display:none}
+}
+@media (max-width:680px){
+  :root{--pad:12px;--h-time:88px;--h-bar:48px;--h-top:64px}
+  .topbar{padding:0 12px;gap:8px}
+  .brand small{display:none}
+  .chip b{max-width:34vw}
+  .stage-bar{padding:0 12px;gap:8px}
+  .stage-meta{display:none}
+  .viewport{padding:12px}
+  .timeline{padding:12px}
+  .tips{display:none}
+  .tbtn{width:44px;height:44px;min-height:44px}
+  .btn{min-height:40px;padding:10px 0}
+  .dial{max-width:180px}
+}
+@media (max-width:520px){
+  .brand>div{display:none}
+  .chip b{max-width:24vw}
+  #fileMeta{display:none}
+  .open-label{display:none}
+  .params-label{display:none}
+  .lang-switch{padding:2px;gap:2px}
+  .lang-switch button{min-height:28px;padding:2px 6px}
+  .topbar .btn{padding:8px 12px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    scroll-behavior:auto!important;
+    transition-duration:.01ms!important;
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+  }
+}
+
+</style>
+</head>
+<body>
+<svg style="position:absolute;width:0;height:0;overflow:hidden" aria-hidden="true">
+  <symbol id="i-folder-open" viewBox="0 0 24 24">
+    <path d="M6 14l1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6A2 2 0 0 1 18.45 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>
+  </symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24">
+    <path d="M4 6h8M16 6h4M4 12h4M12 12h8M4 18h10M18 18h2"/>
+    <circle cx="14" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>
+  </symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+  <symbol id="i-arrow-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24">
+    <path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+  </symbol>
+  <symbol id="i-file-video" viewBox="0 0 24 24">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+    <path d="M14 2v6h6"/><path d="m10 11 5 3-5 3z"/>
+  </symbol>
+  <symbol id="i-motion" viewBox="0 0 24 24">
+    <path d="M4 7h9M3 12h13M5 17h8"/>
+    <path d="M14 5c2.2 0 4 1.6 4 3.5S16.2 12 14 12"/>
+    <path d="M13 15c2.8 0 5 1.4 5 3"/>
+  </symbol>
+  <symbol id="i-depth" viewBox="0 0 24 24">
+    <path d="m12 3 9 5-9 5-9-5 9-5Z"/>
+    <path d="m3 12 9 5 9-5M3 16l9 5 9-5"/>
+  </symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24">
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.09a2 2 0 0 1-1-1.74v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2Z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-aperture" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M12 3l4.4 7.4M21 12h-8.8M16.4 19.4L12 12M7.6 19.4L12 12M3 12h8.8M7.6 4.6L12 12"/>
+  </symbol>
+  <symbol id="i-integral" viewBox="0 0 24 24">
+    <path d="M17.5 4.5h-7a3.2 3.2 0 0 0 0 6.4h3a3.2 3.2 0 0 1 0 6.4h-7"/>
+  </symbol>
+  <symbol id="i-chip" viewBox="0 0 24 24">
+    <rect x="7" y="7" width="10" height="10" rx="1.4"/>
+    <path d="M10 3v3M14 3v3M10 18v3M14 18v3M3 10h3M3 14h3M18 10h3M18 14h3"/>
+  </symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24">
+    <circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>
+  </symbol>
+</svg>
+<input type="file" id="fileInput" hidden
+       accept="video/*,.mkv,.avi,.wmv,.mpg,.mpeg,.m4v"
+       aria-label="选择视频文件">
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="1.2" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.2"/>
+        <path d="M12 2.8 L16.4 10.4 M21 12 L12.6 12 M17.6 20 L13.2 12.4
+                 M6.4 20 L10.8 12.4 M3 12 L11.4 12 M6.4 4 L10.8 11.6"/>
+      </svg>
+      <div><b>CineEdit</b><small>OPTICAL MOTION</small></div>
+    </div>
+    <div class="chip empty" id="fileChip" aria-live="polite">
+      <b id="fileChipName">未打开素材</b><span id="fileMeta"></span>
+    </div>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="settingsBtn" onclick="openSettings()"
+            aria-label="设置" title="设置" aria-haspopup="dialog" aria-expanded="false">
+      <svg class="icon" aria-hidden="true"><use href="#i-settings"/></svg>
+    </button>
+    <div class="lang-switch" role="group" aria-label="语言">
+      <button type="button" data-lang="zh" class="on" aria-pressed="true">中</button>
+      <button type="button" data-lang="en" aria-pressed="false">EN</button>
+    </div>
+    <div class="tag-gpu" id="gpuChip"><i></i><span id="gpuText">检测中</span></div>
+    <button class="btn ghost" onclick="chooseVideo()" aria-label="打开视频">
+      <svg class="icon" aria-hidden="true"><use href="#i-folder-open"/></svg>
+      <span class="open-label">打开视频</span>
+    </button>
+    <button class="btn ghost rail-toggle" id="railToggle" onclick="toggleRail()"
+            aria-label="打开参数" aria-controls="inspector" aria-expanded="false">
+      <svg class="icon" aria-hidden="true"><use href="#i-sliders"/></svg><span class="params-label">参数</span>
+    </button>
+  </header>
+
+  <main class="workspace">
+    <nav class="mode-rail" aria-label="处理模式">
+      <button type="button" id="modeBlur" class="mode-btn on" aria-pressed="true"
+              aria-label="运动模糊" onclick="setProcessMode('blur')">
+        <svg class="icon" aria-hidden="true"><use href="#i-motion"/></svg>
+        <span>运动模糊</span>
+      </button>
+      <button type="button" id="modeDepth" class="mode-btn" aria-pressed="false"
+              aria-label="深度图" onclick="setProcessMode('depth')">
+        <svg class="icon" aria-hidden="true"><use href="#i-depth"/></svg>
+        <span>深度图</span>
+      </button>
+    </nav>
+
+    <section class="stage">
+      <div class="stage-bar">
+        <div class="seg" id="viewMode">
+          <button id="viewCompare" data-mode="compare" class="on" aria-pressed="true">对比</button>
+          <button id="viewOriginal" data-mode="orig" aria-pressed="false">原片</button>
+          <button id="viewResult" data-mode="blur" aria-pressed="false">模糊</button>
+        </div>
+        <div class="spacer"></div>
+        <span class="stage-meta" id="latency"></span>
+      </div>
+
+      <div class="viewport" id="viewport">
+        <div class="empty" id="empty">
+          <h2>打开一段视频开始</h2>
+          <p>快门区间内取子帧采样，按光流重建每个时刻的画面，在线性光空间积分。
+             旋转、加速、遮挡与相机运动都按真实曝光处理。</p>
+          <button class="btn ghost" onclick="chooseVideo()">打开视频</button>
+          <div class="recent" id="recent" hidden>
+            <h3>最近打开</h3>
+            <div id="recentList"></div>
+          </div>
+        </div>
+
+        <figure class="frame" id="frame" data-mode="compare" hidden>
+          <img id="imgA" class="base" alt="原始帧">
+          <img id="imgB" class="over" alt="模糊后帧">
+          <div class="badge l">原始</div>
+          <div class="badge r" id="resultBadge">模糊视图</div>
+          <div class="wipe" id="wipe"></div>
+        </figure>
+
+        <div class="spin" id="spin" role="status" aria-live="polite"><i></i><span id="spinText">渲染预览</span></div>
+      </div>
+
+      <div class="timeline">
+        <div class="track" id="track">
+          <div class="ticks"></div>
+          <div class="band" id="band"></div>
+          <div class="run" id="tprog"></div>
+          <button class="handle" id="hIn" title="入点" aria-label="设置入点" role="slider"
+                  aria-valuemin="0" aria-valuenow="0"></button>
+          <button class="handle" id="hOut" title="出点" aria-label="设置出点" role="slider"
+                  aria-valuemin="0" aria-valuenow="0"></button>
+          <div class="head" id="head"></div>
+        </div>
+        <div class="transport">
+          <button class="tbtn" onclick="step(-1)" title="上一帧" aria-label="上一帧">
+            <svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg>
+          </button>
+          <button class="tbtn" onclick="step(1)" title="下一帧" aria-label="下一帧">
+            <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+          </button>
+          <span class="tc"><b id="tcur">00:00.00</b> / <span id="tdur">00:00.00</span></span>
+          <div class="spacer"></div>
+          <span class="tips"><kbd>←</kbd><kbd>→</kbd> 逐帧 · <kbd>⇧</kbd> 5 帧 · <kbd>空格</kbd> <span id="playHint">连续预览</span></span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="inspector" id="inspector" aria-label="渲染参数">
+      <div class="insp-head"><b>参数</b>
+        <button class="icon-btn rail-toggle" onclick="toggleRail(false)" aria-label="收起参数">
+          <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
+        </button>
+      </div>
+
+      <div class="insp-body">
+        <div id="blurPanel">
+        <div class="sec">
+          <div class="sec-h">
+            <div class="t"><svg class="icon" aria-hidden="true"><use href="#i-aperture"/></svg><span>快门角</span></div>
+            <em id="angleHint">电影标准</em>
+          </div>
+          <div class="dial-wrap">
+            <svg class="dial" viewBox="0 0 180 104" id="dial" aria-hidden="true">
+              <defs>
+                <linearGradient id="dialGrad" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0" stop-color="#5b8cff"/>
+                  <stop offset=".55" stop-color="#a97bff"/>
+                  <stop offset="1" stop-color="#ff8fb8"/>
+                </linearGradient>
+              </defs>
+              <path class="dial-track" d="M20 92 A70 70 0 0 1 160 92"/>
+              <path class="dial-fill" id="dialFill" d="M20 92 A70 70 0 0 1 160 92"
+                    stroke-dasharray="110 220"/>
+              <g id="dialTicks"></g>
+            </svg>
+            <div class="dial-val">
+              <b id="angleV">180<small>°</small></b>
+              <em id="angleMs"></em>
+            </div>
+          </div>
+          <input type="range" id="angle" min="0" max="360" step="5" value="180" aria-label="快门角">
+          <div class="presets">
+            <button data-angle="90" onclick="preset(90)">硬朗</button>
+            <button data-angle="180" class="on" onclick="preset(180)">电影</button>
+            <button data-angle="270" onclick="preset(270)">长拖影</button>
+            <button data-angle="360" onclick="preset(360)">全曝</button>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h">
+            <div class="t"><svg class="icon" aria-hidden="true"><use href="#i-integral"/></svg><span>积分</span></div>
+            <em id="costHint"></em>
+          </div>
+          <div class="field"><label>子帧采样</label><div class="v" id="samplesV">16</div></div>
+          <input type="range" id="samples" min="4" max="32" step="2" value="16" aria-label="子帧采样数">
+          <div class="field"><label>轨迹强度</label><div class="v" id="strengthV">100%</div></div>
+          <input type="range" id="strength" min="20" max="100" step="5" value="100" aria-label="轨迹强度">
+          <div class="field"><label>抗伪影</label><div class="v" id="photoV">0%</div></div>
+          <input type="range" id="photo" min="0" max="100" step="10" value="0" aria-label="抗伪影强度">
+          <label class="switch">
+            <div><span>双三次重采样</span><small>拖影更柔，约慢一倍</small></div>
+            <input type="checkbox" id="bicubic"><i></i>
+          </label>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h">
+            <div class="t"><svg class="icon" aria-hidden="true"><use href="#i-chip"/></svg><span>引擎</span></div>
+          </div>
+          <div class="field"><label for="quality">光流精度</label>
+            <select id="quality" class="inline" aria-label="光流精度">
+              <option value="turbo">极速</option>
+              <option value="fast">快速</option>
+              <option value="std" selected>标准</option>
+              <option value="fine">精细</option>
+            </select>
+          </div>
+          <div class="pair" style="margin-bottom:4px">
+            <div><label for="res">处理分辨率</label>
+              <select id="res" class="inline wide" aria-label="处理分辨率">
+                <option value="0" selected>原始</option>
+                <option value="2160">4K</option>
+                <option value="1080">1080p</option>
+                <option value="720">720p</option>
+              </select>
+            </div>
+            <div><label for="codec">编码器</label>
+              <select id="codec" class="inline wide" aria-label="编码器">
+                <option value="auto" selected>自动</option>
+                <option value="h264_nvenc">H.264 NVENC</option>
+                <option value="hevc_nvenc">HEVC NVENC</option>
+                <option value="libx264">libx264</option>
+              </select>
+            </div>
+          </div>
+          <label class="switch">
+            <div><span>双向校验</span><small>遮挡边界更稳，慢一倍</small></div>
+            <input type="checkbox" id="robust"><i></i>
+          </label>
+        </div>
+        </div>
+
+        <div id="depthPanel" hidden>
+          <div class="sec">
+            <div class="sec-h">
+              <div class="t"><svg class="icon" aria-hidden="true"><use href="#i-depth"/></svg><span>深度估计</span></div>
+            </div>
+            <div class="field"><label for="depthQuality">深度质量</label>
+              <select id="depthQuality" class="inline" aria-label="深度质量">
+                <option value="turbo">极速</option>
+                <option value="fast" selected>快速</option>
+                <option value="fine">精细</option>
+              </select>
+            </div>
+            <div class="pair" style="margin-bottom:4px">
+              <div><label for="depthRes">输出分辨率</label>
+                <select id="depthRes" class="inline wide" aria-label="输出分辨率">
+                  <option value="0" selected>源尺寸</option>
+                  <option value="1080">1080p</option>
+                  <option value="720">720p</option>
+                </select>
+              </div>
+              <div><label for="depthCodec">编码器</label>
+                <select id="depthCodec" class="inline wide" aria-label="编码器">
+                  <option value="auto" selected>自动</option>
+                  <option value="h264_nvenc">H.264 NVENC</option>
+                  <option value="libx264">libx264</option>
+                </select>
+              </div>
+            </div>
+            <label class="switch">
+              <div><span>反转深度</span><small id="depthInvertHint">近处为白，远处为黑</small></div>
+              <input type="checkbox" id="depthInvert"><i></i>
+            </label>
+            <div class="source-warning" id="depthSourceWarning" hidden aria-live="polite">
+              <span id="depthSourceWarningText"></span>
+              <button type="button" class="btn ghost sm" id="depthSourceChoose"
+                      onclick="chooseVideo()"></button>
+            </div>
+            <div class="model-state" id="depthModelState" hidden></div>
+          </div>
+        </div>
+
+        <div class="sec">
+          <div class="sec-h">
+            <div class="t"><svg class="icon" aria-hidden="true"><use href="#i-clock"/></svg><span>区间与输出</span></div>
+            <em id="rangeMs"></em>
+          </div>
+          <div class="pair">
+            <div><label>入点（秒）</label><input class="tin" type="number" id="tin" value="0" step="0.1" min="0"></div>
+            <div><label>出点（秒）</label><input class="tin" type="number" id="tout" value="0" step="0.1" min="0"></div>
+          </div>
+          <div class="path">
+            <input type="text" id="dst" placeholder="自动生成 _blur.mp4" aria-label="输出路径">
+            <input type="text" id="depthDst" hidden placeholder="自动生成 _depth.mp4" aria-label="深度输出路径">
+            <button class="btn ghost sm" onclick="openOutputPicker()">更改</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="insp-foot">
+        <div class="prog"><i id="bar"></i></div>
+        <div class="state">
+          <b id="status" role="status" aria-live="polite">就绪</b>
+          <span class="right" id="eta"></span>
+        </div>
+        <div class="breakdown" id="breakdown"></div>
+        <button class="btn solid block" id="btnRun" onclick="runPrimary()">开始渲染</button>
+        <button class="btn ghost block sm" id="reveal" style="margin-top:6px" hidden
+                onclick="reveal()">打开输出目录</button>
+        <details class="logs" id="logs" hidden>
+          <summary>运行日志</summary>
+          <pre id="log"></pre>
+        </details>
+      </div>
+    </aside>
+
+    <div class="scrim" id="scrim" onclick="toggleRail(false)"></div>
+  </main>
+</div>
+
+<div class="modal" id="modal">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-hd">
+      <b id="sheetTitle">选择文件</b><span id="mpath"></span>
+      <button class="icon-btn" onclick="closeModal()" aria-label="关闭文件选择器">
+        <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <div class="sheet-ls" id="mlist"></div>
+    <div class="sheet-ft">
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn solid" onclick="useDir()">选择此目录</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal settings-modal" id="settingsModal">
+  <div class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="settings-head">
+      <div><b id="settingsTitle">设置</b><small>预览与输出偏好</small></div>
+      <button class="icon-btn" id="settingsClose" onclick="closeSettings()" aria-label="关闭设置">
+        <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
+      </button>
+    </div>
+    <div class="settings-body">
+      <nav class="settings-nav" role="tablist" aria-label="设置分类">
+        <button type="button" class="on" data-settings-tab="preview" role="tab"
+                aria-selected="true" aria-controls="settingsPreview">预览</button>
+        <button type="button" data-settings-tab="performance" role="tab"
+                aria-selected="false" aria-controls="settingsPerformance">性能</button>
+        <button type="button" data-settings-tab="output" role="tab"
+                aria-selected="false" aria-controls="settingsOutput">输出</button>
+        <button type="button" data-settings-tab="interface" role="tab"
+                aria-selected="false" aria-controls="settingsInterface">界面</button>
+      </nav>
+      <div class="settings-content">
+        <section class="settings-sec" id="settingsPreview" role="tabpanel" data-settings-section="preview">
+          <h3>预览</h3>
+          <p>逐帧播放，每次只前进一个源帧。</p>
+          <div class="settings-row">
+            <div><label for="setPreviewHeight">预览分辨率</label><small>预览分辨率越低，播放越流畅。</small></div>
+            <select id="setPreviewHeight" class="inline wide" aria-label="预览分辨率">
+              <option value="540">1/2 分辨率</option>
+              <option value="270">1/4 分辨率</option>
+              <option value="0">源尺寸</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><label for="setPreviewQuality">预览质量</label><small>独立于最终渲染参数。</small></div>
+            <select id="setPreviewQuality" class="inline wide" aria-label="预览质量">
+              <option value="fast">快速</option>
+              <option value="turbo">极速</option>
+              <option value="follow">跟随当前参数</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div><strong>循环预览</strong><small>播放到出点后回到入点继续。</small></div>
+            <label class="switch"><input type="checkbox" id="setLoopPreview"><i></i></label>
+          </div>
+        </section>
+
+        <section class="settings-sec" id="settingsPerformance" role="tabpanel"
+                 data-settings-section="performance" hidden>
+          <h3>性能</h3>
+          <p>计算设备会在下一次预览或渲染时生效。</p>
+          <div class="settings-row">
+            <div><label for="setDevice">计算设备</label><small>优先使用独立显卡，必要时可切到 CPU。</small></div>
+            <select id="setDevice" class="inline wide" aria-label="计算设备">
+              <option value="auto">自动选择</option>
+              <option value="cuda">使用 CUDA</option>
+              <option value="cpu">使用 CPU</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="settings-sec" id="settingsOutput" role="tabpanel"
+                 data-settings-section="output" hidden>
+          <h3>输出</h3>
+          <div class="settings-row">
+            <div><strong>保留历史产物</strong><small>保留同名输出的历史版本，并自动递增编号。</small></div>
+            <label class="switch"><input type="checkbox" id="setPreserveOutputs"><i></i></label>
+          </div>
+          <div class="settings-row">
+            <div><strong>自动打开输出目录</strong><small>渲染完成后自动打开文件所在目录。</small></div>
+            <label class="switch"><input type="checkbox" id="setAutoOpenOutput"><i></i></label>
+          </div>
+        </section>
+
+        <section class="settings-sec" id="settingsInterface" role="tabpanel"
+                 data-settings-section="interface" hidden>
+          <h3>界面</h3>
+          <div class="settings-row">
+            <div><strong>显示快捷键提示</strong><small>在时间轴右侧显示空格和逐帧快捷键。</small></div>
+            <label class="switch"><input type="checkbox" id="setShowShortcuts"><i></i></label>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="settings-foot">
+      <button class="btn ghost" id="settingsReset" onclick="resetSettings()">恢复默认</button>
+      <button class="btn solid" id="settingsDone" onclick="closeSettings()">完成</button>
+    </div>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" aria-live="assertive"></div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const S = {
+  src: "", dur: 0, fps: 30, t: 0, wipe: 50,
+  mode: "compare", processMode: "blur", ctrl: null, running: false,
+  starting: false, cancelPending: false,
+  previewPlaying: false, previewPlaybackToken: 0, previewFrame: 0,
+  frameReady: false, lastLatency: 0, previewPending: false,
+  origKey: "", origUrl: "", blurUrl: "",
+  uploading: false, cuda: false, gpuName: "",
+  depthModelAvailable: null, completedOutput: "",
+  statusKey: "ready", statusVars: {}, etaKey: "", etaVars: {},
+  breakdownParts: null
+};
+const PROCESS_STORAGE = "cinedit.mode";
+const SETTINGS_KEY = "cinedit.settings";
+const DEFAULT_SETTINGS = Object.freeze({
+  previewHeight: 540,
+  previewQuality: "fast",
+  loopPreview: false,
+  device: "auto",
+  preserveOutputs: true,
+  autoOpenOutput: false,
+  showShortcuts: true
+});
+function loadSettings(){
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}"); } catch(e){}
+  const settings = { ...DEFAULT_SETTINGS };
+  const height = Number(saved.previewHeight);
+  if ([0, 270, 540].includes(height)) settings.previewHeight = height;
+  if (["fast", "turbo", "follow"].includes(saved.previewQuality)) {
+    settings.previewQuality = saved.previewQuality;
+  }
+  if (["auto", "cuda", "cpu"].includes(saved.device)) settings.device = saved.device;
+  for (const key of ["loopPreview", "preserveOutputs", "autoOpenOutput", "showShortcuts"]){
+    if (typeof saved[key] === "boolean") settings[key] = saved[key];
+  }
+  return settings;
+}
+const APP_SETTINGS = loadSettings();
+let settingsReturnFocus = null;
+function persistSettings(){
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(APP_SETTINGS)); } catch(e){}
+}
+function applySettingsToControls(){
+  $("setPreviewHeight").value = String(APP_SETTINGS.previewHeight);
+  $("setPreviewQuality").value = APP_SETTINGS.previewQuality;
+  $("setLoopPreview").checked = APP_SETTINGS.loopPreview;
+  $("setDevice").value = APP_SETTINGS.device;
+  $("setPreserveOutputs").checked = APP_SETTINGS.preserveOutputs;
+  $("setAutoOpenOutput").checked = APP_SETTINGS.autoOpenOutput;
+  $("setShowShortcuts").checked = APP_SETTINGS.showShortcuts;
+}
+function applySettingsEffects(){
+  document.body.classList.toggle("hide-shortcuts", !APP_SETTINGS.showShortcuts);
+}
+function updateSettingsFromControls(event){
+  APP_SETTINGS.previewHeight = Number($("setPreviewHeight").value);
+  APP_SETTINGS.previewQuality = $("setPreviewQuality").value;
+  APP_SETTINGS.loopPreview = $("setLoopPreview").checked;
+  APP_SETTINGS.device = $("setDevice").value;
+  APP_SETTINGS.preserveOutputs = $("setPreserveOutputs").checked;
+  APP_SETTINGS.autoOpenOutput = $("setAutoOpenOutput").checked;
+  APP_SETTINGS.showShortcuts = $("setShowShortcuts").checked;
+  persistSettings();
+  applySettingsEffects();
+  if (["setPreviewHeight", "setPreviewQuality", "setDevice"].includes(event.target.id)) {
+    queuePreview(0);
+  }
+}
+function setSettingsTab(name){
+  document.querySelectorAll("[data-settings-tab]").forEach(button => {
+    const on = button.dataset.settingsTab === name;
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-selected", String(on));
+    button.tabIndex = on ? 0 : -1;
+  });
+  document.querySelectorAll("[data-settings-section]").forEach(section => {
+    section.hidden = section.dataset.settingsSection !== name;
+  });
+}
+function openSettings(){
+  stopPreviewPlayback();
+  settingsReturnFocus = document.activeElement;
+  applySettingsToControls();
+  setSettingsTab("preview");
+  $("settingsModal").classList.add("on");
+  $("settingsBtn").setAttribute("aria-expanded", "true");
+  setTimeout(() => document.querySelector('[data-settings-tab="preview"]')?.focus(), 0);
+}
+function closeSettings(){
+  if (!$("settingsModal").classList.contains("on")) return;
+  $("settingsModal").classList.remove("on");
+  $("settingsBtn").setAttribute("aria-expanded", "false");
+  if (settingsReturnFocus && settingsReturnFocus.focus) settingsReturnFocus.focus();
+  settingsReturnFocus = null;
+}
+function resetSettings(){
+  Object.assign(APP_SETTINGS, DEFAULT_SETTINGS);
+  persistSettings();
+  applySettingsToControls();
+  applySettingsEffects();
+  queuePreview(0);
+  toast(t("settingsRestored"));
+}
+function bindSettingsControls(){
+  const tabs = [...document.querySelectorAll("[data-settings-tab]")];
+  tabs.forEach((button, index) => {
+    button.addEventListener("click", () => setSettingsTab(button.dataset.settingsTab));
+    button.addEventListener("keydown", e => {
+      const direction = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1
+                      : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+      if (!direction) return;
+      e.preventDefault();
+      const target = tabs[(index + direction + tabs.length) % tabs.length];
+      setSettingsTab(target.dataset.settingsTab);
+      target.focus();
+    });
+  });
+  [
+    "setPreviewHeight", "setPreviewQuality", "setLoopPreview", "setDevice",
+    "setPreserveOutputs", "setAutoOpenOutput", "setShowShortcuts"
+  ].forEach(id => $(id).addEventListener("change", updateSettingsFromControls));
+  $("settingsModal").addEventListener("click", e => {
+    if (e.target.id === "settingsModal") closeSettings();
+  });
+  $("settingsModal").addEventListener("keydown", e => {
+    if (e.key !== "Tab") return;
+    const items = [...$("settingsModal").querySelectorAll(
+      "button:not(:disabled), input:not(:disabled), select:not(:disabled)"
+    )].filter(el => !el.closest("[hidden]"));
+    if (!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === first){
+      e.preventDefault();
+      last.focus();
+    }else if (!e.shiftKey && document.activeElement === last){
+      e.preventDefault();
+      first.focus();
+    }
+  });
+}
+
+const STATIC_EN = {
+  "未打开素材": "No video open",
+  "打开视频": "Open video",
+  "参数": "Settings",
+  "对比": "Compare",
+  "原片": "Original",
+  "原始": "Original",
+  "模糊": "Blurred",
+  "深度": "Depth",
+  "运动模糊": "Motion blur",
+  "深度图": "Depth map",
+  "处理模式": "Processing mode",
+  "模糊视图": "Blur view",
+  "深度视图": "Depth view",
+  "深度估计": "Depth estimation",
+  "深度质量": "Depth quality",
+  "输出分辨率": "Output resolution",
+  "源尺寸": "Source size",
+  "反转深度": "Invert depth",
+  "近处为白，远处为黑": "Near is white, far is black",
+  "深度输出路径": "Depth output path",
+  "自动生成 _depth.mp4": "Auto: _depth.mp4",
+  "未找到本地视频深度模型，请安装到 assets/weights/video_depth_anything_vits/":
+    "Local video depth model not found. Install it under assets/weights/video_depth_anything_vits/",
+  "打开一段视频开始": "Open a video to begin",
+  "快门区间内取子帧采样，按光流重建每个时刻的画面，在线性光空间积分。 旋转、加速、遮挡与相机运动都按真实曝光处理。":
+    "Samples subframes within the shutter interval, reconstructs each moment with optical flow, and integrates in linear light. Rotation, acceleration, occlusion, and camera motion follow real exposure.",
+  "最近打开": "Recent",
+  "渲染预览": "Rendering preview",
+  "上一帧": "Previous frame",
+  "下一帧": "Next frame",
+  "入点": "In point",
+  "出点": "Out point",
+  "逐帧 ·": "frame ·",
+  "5 帧 ·": "5 frames ·",
+  "空格": "Space",
+  "连续预览": "Play preview",
+  "暂停预览": "Pause preview",
+  "渲染": "Render",
+  "快门角": "Shutter angle",
+  "硬朗": "Crisp",
+  "电影": "Cinema",
+  "长拖影": "Long trail",
+  "全曝": "Full",
+  "积分": "Integration",
+  "子帧采样": "Subframe samples",
+  "轨迹强度": "Trail strength",
+  "抗伪影": "Artifact control",
+  "双三次重采样": "Bicubic resampling",
+  "拖影更柔，约慢一倍": "Softer trails, about 2x slower",
+  "引擎": "Engine",
+  "光流精度": "Optical flow quality",
+  "极速": "Turbo",
+  "快速": "Fast",
+  "标准": "Standard",
+  "精细": "Fine",
+  "处理分辨率": "Output resolution",
+  "编码器": "Encoder",
+  "自动": "Auto",
+  "双向校验": "Bidirectional check",
+  "遮挡边界更稳，慢一倍": "More stable occlusion, 2x slower",
+  "区间与输出": "Range and output",
+  "入点（秒）": "In point (s)",
+  "出点（秒）": "Out point (s)",
+  "更改": "Change",
+  "开始渲染": "Start render",
+  "打开输出目录": "Open output folder",
+  "运行日志": "Run log",
+  "选择文件": "Select file",
+  "取消": "Cancel",
+  "选择此目录": "Choose this folder",
+  "打开参数": "Open settings",
+  "收起参数": "Close settings",
+  "设置": "Settings",
+  "预览与输出偏好": "Preview and output preferences",
+  "关闭设置": "Close settings",
+  "预览": "Preview",
+  "性能": "Performance",
+  "输出": "Output",
+  "界面": "Interface",
+  "设置分类": "Settings categories",
+  "预览分辨率": "Preview resolution",
+  "预览分辨率越低，播放越流畅。": "Lower preview resolution improves playback speed.",
+  "1/2 分辨率": "1/2 resolution",
+  "1/4 分辨率": "1/4 resolution",
+  "预览质量": "Preview quality",
+  "独立于最终渲染参数。": "Independent from final render settings.",
+  "跟随当前参数": "Follow current settings",
+  "循环预览": "Loop preview",
+  "播放到出点后回到入点继续。": "Return to the in point after reaching the out point.",
+  "计算设备": "Compute device",
+  "计算设备会在下一次预览或渲染时生效。": "Applies to the next preview or render.",
+  "优先使用独立显卡，必要时可切到 CPU。": "Prefer the discrete GPU, with CPU available as a fallback.",
+  "自动选择": "Auto",
+  "使用 CUDA": "Use CUDA",
+  "使用 CPU": "Use CPU",
+  "保留历史产物": "Preserve previous outputs",
+  "保留同名输出的历史版本，并自动递增编号。": "Keep previous versions and add numbered suffixes.",
+  "自动打开输出目录": "Open output folder when done",
+  "渲染完成后自动打开文件所在目录。": "Open the output folder automatically after rendering.",
+  "显示快捷键提示": "Show shortcut hints",
+  "在时间轴右侧显示空格和逐帧快捷键。": "Show space and frame-step shortcuts beside the timeline.",
+  "恢复默认": "Restore defaults",
+  "完成": "Done",
+  "逐帧播放，每次只前进一个源帧。": "Playback advances exactly one source frame at a time.",
+  "关闭文件选择器": "Close file picker",
+  "设置入点": "Set in point",
+  "设置出点": "Set out point",
+  "子帧采样数": "Subframe sample count",
+  "轨迹强度": "Trail strength",
+  "抗伪影强度": "Artifact control strength",
+  "输出路径": "Output path",
+  "渲染参数": "Render settings",
+  "语言": "Language",
+  "选择视频文件": "Choose video file",
+  "自动生成 _blur.mp4": "Auto: _blur.mp4",
+  "原始帧": "Original frame",
+  "模糊后帧": "Blurred frame",
+  "减少静态区域闪烁": "Reduce flicker in static areas",
+  "就绪": "Ready",
+  "检测中": "Detecting"
+};
+
+const I18N = {
+  zh: {
+    compare: "对比",
+    original: "原片",
+    blurred: "模糊",
+    depth: "深度",
+    blurredView: "模糊视图",
+    depthView: "深度视图",
+    originalFrame: "原始帧",
+    blurredFrame: "模糊后帧",
+    depthFrame: "深度帧",
+    noVideo: "未打开素材",
+    detecting: "检测中",
+    cpuMode: "CPU 模式",
+    angleHard: "极硬朗",
+    angleAction: "战地感",
+    angleStandard: "电影标准",
+    angleVisible: "明显拖影",
+    angleLong: "长拖影",
+    exposure: "曝光 {ms} ms",
+    relativeCost: "相对耗时 ×{x}",
+    rangeFull: "整段",
+    rangeValue: "{sec} s · {frames} 帧",
+    previewLatency: "预览 {ms} ms · 540p",
+    previewLatencySize: "预览 {ms} ms · {size}",
+    sourceSize: "源尺寸",
+    settingsRestored: "设置已恢复默认",
+    ready: "就绪",
+    starting: "启动中",
+    cancelling: "正在取消",
+    rendering: "渲染中 {done} / {total}",
+    failed: "失败",
+    cancelled: "已取消",
+    complete: "完成 · {frames} 帧",
+    fpsEta: "{fps} fps · 剩 {time}",
+    fpsSize: "{fps} fps · {size}",
+    startRender: "开始渲染",
+    cancelRender: "取消渲染",
+    playPreview: "连续预览",
+    pausePreview: "暂停预览",
+    previewBusy: "渲染进行中，预览已暂停",
+    previewFailed: "预览失败：{error}",
+    originalPreviewFailed: "原图预览失败",
+    waitRender: "请先等待当前渲染结束",
+    cannotRead: "无法读取：{error}",
+    unknownError: "未知错误",
+    readFailed: "读取失败：{error}",
+    openFirst: "请先打开视频",
+    startFailed: "启动失败",
+    renderFailed: "渲染失败：{error}",
+    renderComplete: "渲染完成，可打开输出目录",
+    ffmpegMissing: "未找到 ffmpeg，无法渲染",
+    listFailed: "无法列出目录",
+    uploading: "正在上传 {name}",
+    uploadingProgress: "正在上传 {pct}%",
+    uploadFailed: "上传失败：{error}",
+    waitUpload: "请等待上传完成",
+    outputMissing: "没有可打开的输出文件",
+    invertHintNormal: "近处为白，远处为黑",
+    invertHintInverted: "近处为黑，远处为白",
+    depthModelMissing: "未找到本地视频深度模型，请安装到 assets/weights/video_depth_anything_vits/",
+    depthSourceWarning: "当前是已模糊视频。模糊会放大彩色特效和叠加层，深度图建议改用原片。",
+    chooseOriginal: "选择原片",
+    parentDir: "上级目录",
+    selectDisk: "选择磁盘",
+    breakdown: "分段 ms/帧 · 光流 {flow} · 积分 {render} · 解码 {dec} · 编码 {enc}"
+  },
+  en: {
+    compare: "Compare",
+    original: "Original",
+    blurred: "Blurred",
+    depth: "Depth",
+    blurredView: "Blur view",
+    depthView: "Depth view",
+    originalFrame: "Original frame",
+    blurredFrame: "Blurred frame",
+    depthFrame: "Depth frame",
+    noVideo: "No video open",
+    detecting: "Detecting",
+    cpuMode: "CPU mode",
+    angleHard: "Very crisp",
+    angleAction: "Action",
+    angleStandard: "Cinema standard",
+    angleVisible: "Visible trail",
+    angleLong: "Long trail",
+    exposure: "Exposure {ms} ms",
+    relativeCost: "Relative cost ×{x}",
+    rangeFull: "Full clip",
+    rangeValue: "{sec} s · {frames} frames",
+    previewLatency: "Preview {ms} ms · 540p",
+    previewLatencySize: "Preview {ms} ms · {size}",
+    sourceSize: "Source size",
+    settingsRestored: "Settings restored to defaults",
+    ready: "Ready",
+    starting: "Starting",
+    cancelling: "Cancelling",
+    rendering: "Rendering {done} / {total}",
+    failed: "Failed",
+    cancelled: "Cancelled",
+    complete: "Complete · {frames} frames",
+    fpsEta: "{fps} fps · {time} left",
+    fpsSize: "{fps} fps · {size}",
+    startRender: "Start render",
+    cancelRender: "Cancel render",
+    playPreview: "Play preview",
+    pausePreview: "Pause preview",
+    previewBusy: "Rendering in progress; preview paused",
+    previewFailed: "Preview failed: {error}",
+    originalPreviewFailed: "Original preview failed",
+    waitRender: "Wait for the current render to finish",
+    cannotRead: "Unable to read: {error}",
+    unknownError: "Unknown error",
+    readFailed: "Read failed: {error}",
+    openFirst: "Open a video first",
+    startFailed: "Failed to start",
+    renderFailed: "Render failed: {error}",
+    renderComplete: "Render complete. The output folder is ready.",
+    ffmpegMissing: "ffmpeg was not found; rendering is unavailable",
+    listFailed: "Unable to list the folder",
+    uploading: "Uploading {name}",
+    uploadingProgress: "Uploading {pct}%",
+    uploadFailed: "Upload failed: {error}",
+    waitUpload: "Wait for the upload to finish",
+    outputMissing: "No completed output is available",
+    invertHintNormal: "Near is white, far is black",
+    invertHintInverted: "Near is black, far is white",
+    depthModelMissing: "Local video depth model not found. Install it under assets/weights/video_depth_anything_vits/",
+    depthSourceWarning: "This clip is already motion-blurred. Blur can enlarge color effects and overlays, so depth maps are more reliable on the original video.",
+    chooseOriginal: "Choose original",
+    parentDir: "Parent folder",
+    selectDisk: "Choose drive",
+    breakdown: "ms/frame · flow {flow} · integrate {render} · decode {dec} · encode {enc}"
+  }
+};
+
+let LANG = "zh";
+const TEXT_ORIGINALS = new WeakMap();
+const ATTR_ORIGINALS = new WeakMap();
+const STATIC_SKIP = "#fileChipName,#fileMeta,#gpuText,#angleV,#angleMs,#angleHint,#samplesV,#strengthV,#photoV,#costHint,#rangeMs,#latency,#status,#eta,#breakdown,#log,#mpath,#dst,#depthDst,#depthInvertHint,#depthModelState,#tcur,#tdur,#recentList,.sheet-ls,#viewCompare,#viewOriginal,#viewResult,#resultBadge";
+
+function t(key, vars = {}){
+  const template = (I18N[LANG] && I18N[LANG][key]) || (I18N.zh[key] || key);
+  return template.replace(/\{(\w+)\}/g, (_, name) =>
+    vars[name] === undefined ? "" : String(vars[name]));
+}
+function normalizedText(value){ return (value || "").replace(/\s+/g, " ").trim(); }
+function applyStaticLanguage(lang){
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  let node;
+  while ((node = walker.nextNode())){
+    const parent = node.parentElement;
+    if (!parent || parent.closest("script,style,svg") || parent.closest(STATIC_SKIP)) continue;
+    if (!TEXT_ORIGINALS.has(node)) TEXT_ORIGINALS.set(node, node.nodeValue);
+    const original = TEXT_ORIGINALS.get(node);
+    const key = normalizedText(original);
+    const translated = lang === "en" ? STATIC_EN[key] : null;
+    if (translated){
+      const lead = original.match(/^\s*/)[0];
+      const tail = original.match(/\s*$/)[0];
+      node.nodeValue = lead + translated + tail;
+    }else{
+      node.nodeValue = original;
+    }
+  }
+  document.querySelectorAll("[placeholder],[title],[aria-label]").forEach(el => {
+    let saved = ATTR_ORIGINALS.get(el);
+    if (!saved){
+      saved = {};
+      ATTR_ORIGINALS.set(el, saved);
+    }
+    for (const attr of ["placeholder", "title", "aria-label"]){
+      if (!el.hasAttribute(attr)) continue;
+      if (!(attr in saved)) saved[attr] = el.getAttribute(attr);
+      const original = saved[attr];
+      const translated = lang === "en" ? STATIC_EN[normalizedText(original)] : null;
+      el.setAttribute(attr, translated || original);
+    }
+  });
+}
+function setStatus(key, vars = {}){
+  S.statusKey = key;
+  S.statusVars = vars;
+  $("status").textContent = t(key, vars);
+}
+function setEta(key = "", vars = {}){
+  S.etaKey = key;
+  S.etaVars = vars;
+  $("eta").textContent = key ? t(key, vars) : "";
+}
+function refreshDynamicLanguage(){
+  $("fileChipName").textContent = S.src ? displayName(S.src) : t("noVideo");
+  $("gpuText").textContent = S.cuda ? S.gpuName.replace(/NVIDIA\s*/i, "") : t("cpuMode");
+  $("btnRun").textContent = S.running ? t("cancelRender") : t("startRender");
+  $("status").textContent = t(S.statusKey, S.statusVars);
+  $("eta").textContent = S.etaKey ? t(S.etaKey, S.etaVars) : "";
+  updateDepthInvertHint();
+  updateDepthModelState();
+  updateDepthSourceWarning();
+  updatePreviewPlaybackHint();
+  syncAngle();
+  costHint();
+  drawRange();
+  setViewLabels();
+  if (S.lastLatency){
+    $("latency").textContent = t("previewLatencySize", {
+      ms: Math.round(S.lastLatency),
+      size: previewSizeLabel()
+    });
+  }
+  renderBreakdown();
+}
+function setLanguage(lang, persist = true){
+  LANG = lang === "en" ? "en" : "zh";
+  document.documentElement.lang = LANG === "en" ? "en" : "zh-CN";
+  if (persist){
+    try { localStorage.setItem("cinedit.lang", LANG); } catch(e){}
+  }
+  document.querySelectorAll(".lang-switch button").forEach(b => {
+    const on = b.dataset.lang === LANG;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
+  applyStaticLanguage(LANG);
+  refreshDynamicLanguage();
+}
+document.querySelectorAll(".lang-switch button").forEach(b =>
+  b.addEventListener("click", () => setLanguage(b.dataset.lang)));
+try { LANG = localStorage.getItem("cinedit.lang") || "zh"; } catch(e){}
+try {
+  const savedMode = localStorage.getItem(PROCESS_STORAGE);
+  if (savedMode === "depth" || savedMode === "blur") S.processMode = savedMode;
+} catch(e){}
+applyStaticLanguage(LANG);
+
+/* ── 工具 ─────────────────────────────────────────────── */
+function fmt(s){
+  s = Math.max(0, s || 0);
+  const m = Math.floor(s / 60);
+  const r = s - m * 60;
+  return String(m).padStart(2, "0") + ":" + r.toFixed(2).padStart(5, "0");
+}
+function fmtShort(s){
+  s = Math.max(0, Math.round(s || 0));
+  return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+}
+function baseName(p){ return (p || "").split(/[\\/]/).pop(); }
+function displayName(p){ return baseName(p).replace(/^[0-9a-f]{32}_/i, ""); }
+
+function toast(msg, bad){
+  const el = document.createElement("div");
+  el.className = "toast" + (bad ? " bad" : "");
+  el.textContent = msg;
+  $("toasts").appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = "0";
+    el.style.transition = "opacity .25s";
+    setTimeout(() => el.remove(), 260);
+  }, bad ? 3600 : 2200);
+}
+
+/* ── 参数读取 ─────────────────────────────────────────── */
+function params(){
+  return {
+    angle: +$("angle").value,
+    samples: +$("samples").value,
+    strength: +$("strength").value / 100,
+    photometric: +$("photo").value / 100,
+    quality: $("quality").value,
+    robust: $("robust").checked,
+    bicubic: $("bicubic").checked
+  };
+}
+
+/* ── 处理模式 ─────────────────────────────────────────── */
+function currentOutputId(){
+  return S.processMode === "depth" ? "depthDst" : "dst";
+}
+function currentOutput(){
+  return $(currentOutputId()).value.trim();
+}
+function defaultOutputPath(src, mode){
+  if (!src) return "";
+  return src.replace(/\.[^.]+$/, "") + (mode === "depth" ? "_depth.mp4" : "_blur.mp4");
+}
+function ensureModeOutput(mode){
+  const input = $(mode === "depth" ? "depthDst" : "dst");
+  if (!input.value.trim()) input.value = defaultOutputPath(S.src, mode);
+}
+function openOutputPicker(){
+  openPicker(currentOutputId());
+}
+function updateDepthInvertHint(){
+  $("depthInvertHint").textContent = t(
+    $("depthInvert").checked ? "invertHintInverted" : "invertHintNormal"
+  );
+}
+function updateDepthModelState(){
+  const missing = S.depthModelAvailable === false;
+  const el = $("depthModelState");
+  el.hidden = !missing;
+  el.textContent = missing ? t("depthModelMissing") : "";
+}
+function isProcessedDepthSource(path){
+  const stem = baseName(path).replace(/\.[^.]+$/, "");
+  return /_blur$/i.test(stem);
+}
+function updateDepthSourceWarning(){
+  const show = S.processMode === "depth" && isProcessedDepthSource(S.src);
+  const el = $("depthSourceWarning");
+  el.hidden = !show;
+  if (!show) return;
+  $("depthSourceWarningText").textContent = t("depthSourceWarning");
+  $("depthSourceChoose").textContent = t("chooseOriginal");
+}
+function setModeSwitchDisabled(disabled){
+  $("modeBlur").disabled = disabled;
+  $("modeDepth").disabled = disabled;
+}
+function setViewLabels(){
+  const depth = S.processMode === "depth";
+  $("viewCompare").textContent = t("compare");
+  $("viewOriginal").textContent = t("original");
+  $("viewResult").textContent = depth ? t("depth") : t("blurred");
+  $("resultBadge").textContent = depth ? t("depthView") : t("blurredView");
+  $("imgA").alt = t("originalFrame");
+  $("imgB").alt = depth ? t("depthFrame") : t("blurredFrame");
+}
+function setProcessMode(mode){
+  if (S.running){
+    toast(t("waitRender"));
+    return;
+  }
+  S.processMode = mode === "depth" ? "depth" : "blur";
+  try { localStorage.setItem(PROCESS_STORAGE, S.processMode); } catch(e){}
+  const depth = S.processMode === "depth";
+  $("blurPanel").hidden = depth;
+  $("depthPanel").hidden = !depth;
+  $("dst").hidden = depth;
+  $("depthDst").hidden = !depth;
+  $("modeBlur").classList.toggle("on", !depth);
+  $("modeDepth").classList.toggle("on", depth);
+  $("modeBlur").setAttribute("aria-pressed", String(!depth));
+  $("modeDepth").setAttribute("aria-pressed", String(depth));
+  ensureModeOutput(S.processMode);
+  setViewLabels();
+  updateDepthSourceWarning();
+  setMode("compare");
+  queuePreview(0);
+}
+
+/* ── 时间轴 ───────────────────────────────────────────── */
+function setTime(t, refresh){
+  S.t = Math.min(Math.max(0, t), Math.max(0, S.dur - 0.001));
+  $("tcur").textContent = fmt(S.t);
+  const p = S.dur ? (100 * S.t / S.dur) : 0;
+  $("head").style.left = p + "%";
+  if (refresh) queuePreview();
+}
+function step(n){
+  if (!S.src) return;
+  setTime(S.t + n / (S.fps || 30), true);
+}
+function ratioAt(el, clientX){
+  const r = el.getBoundingClientRect();
+  return Math.min(1, Math.max(0, (clientX - r.left) / r.width));
+}
+
+/* ── 对比线 ───────────────────────────────────────────── */
+function setWipe(p){
+  S.wipe = Math.min(100, Math.max(0, p));
+  $("wipe").style.left = S.wipe + "%";
+  $("imgB").style.clipPath = S.mode === "compare"
+    ? "inset(0 0 0 " + S.wipe + "%)"
+    : "none";
+}
+function setMode(m){
+  S.mode = m;
+  $("frame").dataset.mode = m;
+  setWipe(S.wipe);
+  document.querySelectorAll("#viewMode button").forEach(b =>
+    {
+      const on = b.dataset.mode === m;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+}
+document.querySelectorAll("#viewMode button").forEach(b =>
+  b.addEventListener("click", () => setMode(b.dataset.mode)));
+
+/* ── 预览 ─────────────────────────────────────────────── */
+let timer = null;
+let playbackTimer = null;
+function queuePreview(delay){
+  stopPreviewPlayback();
+  clearTimeout(timer);
+  timer = setTimeout(fetchPreview, delay === undefined ? 170 : delay);
+}
+
+function previewSizeLabel(){
+  return APP_SETTINGS.previewHeight ? APP_SETTINGS.previewHeight + "p" : t("sourceSize");
+}
+function effectivePreviewQuality(mode, currentQuality){
+  return APP_SETTINGS.previewQuality === "follow"
+    ? currentQuality
+    : APP_SETTINGS.previewQuality;
+}
+function previewSampleCount(samples){
+  if (APP_SETTINGS.previewQuality === "turbo") return Math.min(samples, 8);
+  if (APP_SETTINGS.previewQuality === "fast") return Math.min(samples, 16);
+  return samples;
+}
+
+async function fetchPreview(){
+  if (!S.src) return false;
+  if (S.running || S.uploading) return false;
+  if (S.ctrl) S.ctrl.abort();
+  S.ctrl = new AbortController();
+  const signal = S.ctrl.signal;
+  $("spin").classList.add("on");
+  const p = params();
+  const previewHeight = APP_SETTINGS.previewHeight;
+  const q = new URLSearchParams({
+    src: S.src, t: S.t.toFixed(3), h: String(previewHeight), mode: S.processMode,
+    device: APP_SETTINGS.device
+  });
+  if (S.processMode === "depth"){
+    q.set("quality", effectivePreviewQuality("depth", $("depthQuality").value));
+    q.set("invert", $("depthInvert").checked ? "1" : "0");
+    q.set("preview", String(previewHeight));
+  }else{
+    q.set("angle", p.angle);
+    q.set("samples", previewSampleCount(p.samples));
+    q.set("strength", p.strength.toFixed(2));
+    q.set("photometric", p.photometric.toFixed(2));
+    q.set("quality", effectivePreviewQuality("blur", p.quality));
+    q.set("robust", p.robust ? "1" : "0");
+    q.set("bicubic", p.bicubic ? "1" : "0");
+  }
+  const t0 = performance.now();
+  try{
+    const rb = await fetch("/api/frame?" + q, {signal});
+    if (!rb.ok) throw new Error(await rb.text() || t("previewFailed", {error: ""}));
+    const bb = await rb.blob();
+
+    const origKey = S.src + "|" + S.t.toFixed(3) + "|" + previewHeight;
+    if (S.origKey !== origKey){
+      const ra = await fetch("/api/frame?orig=1&" + q, {signal});
+      if (!ra.ok) throw new Error(await ra.text() || t("originalPreviewFailed"));
+      const ba = await ra.blob();
+      if (S.origUrl) URL.revokeObjectURL(S.origUrl);
+      S.origUrl = URL.createObjectURL(ba);
+      S.origKey = origKey;
+    }
+    if (S.blurUrl) URL.revokeObjectURL(S.blurUrl);
+    S.blurUrl = URL.createObjectURL(bb);
+    $("imgA").src = S.origUrl;
+    $("imgB").src = S.blurUrl;
+    $("frame").hidden = false;
+    $("empty").hidden = true;
+    S.frameReady = true;
+    setWipe(S.wipe);
+    S.lastLatency = performance.now() - t0;
+    $("latency").textContent = t("previewLatencySize", {
+      ms: Math.round(S.lastLatency),
+      size: previewSizeLabel()
+    });
+    return true;
+  }catch(e){
+    if (e.name !== "AbortError"){
+      if (String(e.message).indexOf("busy") >= 0){
+        toast(t("previewBusy"));
+      }else{
+        toast(t("previewFailed", {error: e.message}), true);
+      }
+    }
+    return false;
+  }finally{
+    $("spin").classList.remove("on");
+  }
+}
+function updatePreviewPlaybackHint(){
+  const hint = $("playHint");
+  if (hint) hint.textContent = t(S.previewPlaying ? "pausePreview" : "playPreview");
+}
+function stopPreviewPlayback(){
+  const wasPlaying = S.previewPlaying;
+  S.previewPlaying = false;
+  S.previewPlaybackToken++;
+  clearTimeout(playbackTimer);
+  if (wasPlaying && S.ctrl) S.ctrl.abort();
+  updatePreviewPlaybackHint();
+}
+function playbackFrameRange(){
+  const fps = S.fps || 30;
+  const startSec = +$("tin").value || 0;
+  const endSec = Math.min(+$("tout").value || S.dur, S.dur);
+  const startFrame = Math.max(0, Math.ceil(startSec * fps - 1e-6));
+  const endFrame = Math.max(startFrame, Math.floor(endSec * fps - 1e-6));
+  return { fps, startFrame, endFrame };
+}
+function startPreviewPlayback(){
+  if (!S.src){ toast(t("openFirst")); return; }
+  if (S.running || S.uploading){
+    toast(t("previewBusy"));
+    return;
+  }
+  stopPreviewPlayback();
+  clearTimeout(timer);
+  const range = playbackFrameRange();
+  let frame = Math.round(S.t * range.fps);
+  if (frame < range.startFrame || frame > range.endFrame) frame = range.startFrame;
+  S.previewFrame = frame;
+  setTime(frame / range.fps, false);
+  const token = ++S.previewPlaybackToken;
+  S.previewPlaying = true;
+  updatePreviewPlaybackHint();
+  playPreviewStep(token);
+}
+function togglePreviewPlayback(){
+  if (S.previewPlaying) stopPreviewPlayback();
+  else startPreviewPlayback();
+}
+async function playPreviewStep(token){
+  if (!S.previewPlaying || token !== S.previewPlaybackToken) return;
+  const started = performance.now();
+  const ok = await fetchPreview();
+  if (!S.previewPlaying || token !== S.previewPlaybackToken) return;
+  if (!ok){
+    stopPreviewPlayback();
+    return;
+  }
+  const range = playbackFrameRange();
+  let next = S.previewFrame + 1;
+  if (next > range.endFrame){
+    if (!APP_SETTINGS.loopPreview){
+      stopPreviewPlayback();
+      return;
+    }
+    next = range.startFrame;
+  }
+  S.previewFrame = next;
+  setTime(next / range.fps, false);
+  const wait = Math.max(0, 1000 / range.fps - (performance.now() - started));
+  playbackTimer = setTimeout(() => playPreviewStep(token), wait);
+}
+
+/* 拖动对比线 */
+(function(){
+  const vp = $("viewport");
+  let dragging = false;
+  vp.addEventListener("pointerdown", e => {
+    if (!S.src || $("frame").hidden || S.mode !== "compare") return;
+    const r = $("frame").getBoundingClientRect();
+    if (e.clientX < r.left - 12 || e.clientX > r.right + 12) return;
+    if (e.clientY < r.top - 12 || e.clientY > r.bottom + 12) return;
+    dragging = true;
+    vp.setPointerCapture(e.pointerId);
+    setWipe(100 * (e.clientX - r.left) / r.width);
+  });
+  vp.addEventListener("pointermove", e => {
+    if (!dragging) return;
+    const r = $("frame").getBoundingClientRect();
+    setWipe(100 * (e.clientX - r.left) / r.width);
+  });
+  const end = () => { dragging = false; };
+  vp.addEventListener("pointerup", end);
+  vp.addEventListener("pointercancel", end);
+})();
+
+/* 时间轴拖动 */
+(function(){
+  const track = $("track");
+  let mode = null;
+  let activePointer = null;
+  const setFromX = x => {
+    const r = track.getBoundingClientRect();
+    const t = S.dur * Math.min(1, Math.max(0, (x - r.left) / r.width));
+    if (mode === "in"){
+      $("tin").value = Math.min(t, (+$("tout").value || S.dur)).toFixed(2);
+      setTime(t, false);
+      drawRange();
+      queuePreview(180);
+    }else if (mode === "out"){
+      $("tout").value = Math.max(t, (+$("tin").value || 0)).toFixed(2);
+      setTime(t, false);
+      drawRange();
+      queuePreview(180);
+    }else{
+      setTime(t, false);
+      queuePreview(180);
+    }
+  };
+  track.addEventListener("pointerdown", e => {
+    if (!S.src) return;
+    mode = e.target.id === "hIn" ? "in" : (e.target.id === "hOut" ? "out" : "play");
+    activePointer = e.pointerId;
+    track.setPointerCapture(e.pointerId);
+    setFromX(e.clientX);
+  });
+  track.addEventListener("pointermove", e => { if (mode) setFromX(e.clientX); });
+  const end = () => {
+    if (!mode) return;
+    mode = null;
+    if (activePointer !== null && track.hasPointerCapture(activePointer)){
+      track.releasePointerCapture(activePointer);
+    }
+    activePointer = null;
+    queuePreview(0);
+  };
+  track.addEventListener("pointerup", end);
+  track.addEventListener("pointercancel", end);
+  track.addEventListener("lostpointercapture", end);
+  window.addEventListener("pointerup", end);
+  window.addEventListener("pointercancel", end);
+})();
+
+function drawRange(){
+  if (!S.dur) return;
+  const a = +$("tin").value || 0;
+  let b = +$("tout").value || S.dur;
+  b = Math.max(a, Math.min(b, S.dur));
+  $("band").style.left = (100 * a / S.dur) + "%";
+  $("band").style.width = (100 * Math.max(0, b - a) / S.dur) + "%";
+  $("hIn").style.left = "calc(" + (100 * a / S.dur) + "% - 8px)";
+  $("hOut").style.left = "calc(" + (100 * b / S.dur) + "% - 8px)";
+  $("hIn").setAttribute("aria-valuenow", a.toFixed(2));
+  $("hIn").setAttribute("aria-valuemax", S.dur.toFixed(2));
+  $("hIn").setAttribute("aria-valuetext", fmtShort(a));
+  $("hOut").setAttribute("aria-valuenow", b.toFixed(2));
+  $("hOut").setAttribute("aria-valuemax", S.dur.toFixed(2));
+  $("hOut").setAttribute("aria-valuetext", fmtShort(b));
+  $("rangeMs").textContent = (b - a > 0)
+    ? t("rangeValue", {
+        sec: (b - a).toFixed(1),
+        frames: Math.max(1, Math.round((b - a) * (S.fps || 30)))
+      })
+    : t("rangeFull");
+}
+
+/* ── 参数联动 ─────────────────────────────────────────── */
+(function buildDialTicks(){
+  const g = $("dialTicks");
+  if (!g) return;
+  const cx = 90, cy = 92;
+  for (let i = 0; i <= 24; i++) {
+    const a = Math.PI + (i / 24) * Math.PI;
+    const major = i % 6 === 0;
+    const r1 = major ? 56 : 62, r2 = 69;
+    const l = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    l.setAttribute("x1", (cx + Math.cos(a) * r1).toFixed(2));
+    l.setAttribute("y1", (cy + Math.sin(a) * r1).toFixed(2));
+    l.setAttribute("x2", (cx + Math.cos(a) * r2).toFixed(2));
+    l.setAttribute("y2", (cy + Math.sin(a) * r2).toFixed(2));
+    l.setAttribute("class", "dial-tick" + (major ? " major" : ""));
+    g.appendChild(l);
+  }
+})();
+
+function syncAngle(){
+  const v = +$("angle").value;
+  $("angleV").innerHTML = v + "<small>°</small>";
+  const fps = S.fps || 30;
+  $("angleMs").textContent = t("exposure", {ms: (v / 360 / fps * 1000).toFixed(1)});
+  const fill = $("dialFill");
+  if (fill) {
+    const arc = Math.PI * 70;
+    fill.setAttribute("stroke-dasharray",
+      (arc * v / 360).toFixed(1) + " " + arc.toFixed(1));
+  }
+  const hint = v < 60 ? "angleHard" : v < 150 ? "angleAction" : v <= 210 ? "angleStandard"
+             : v < 300 ? "angleVisible" : "angleLong";
+  $("angleHint").textContent = t(hint);
+  document.querySelectorAll(".presets button").forEach(b =>
+    b.classList.toggle("on", +b.dataset.angle === v));
+}
+function costHint(){
+  const n = +$("samples").value;
+  const q = $("quality").value;
+  const w = { turbo: 0.45, fast: 0.62, std: 1, fine: 1.7 }[q] || 1;
+  $("costHint").textContent = t("relativeCost", {x: (n * w / 16).toFixed(1)});
+}
+function preset(v){ $("angle").value = v; syncAngle(); queuePreview(); }
+
+$("angle").addEventListener("input", syncAngle);
+$("angle").addEventListener("change", () => queuePreview());
+$("samples").addEventListener("input", e => { $("samplesV").textContent = e.target.value; costHint(); });
+$("samples").addEventListener("change", () => queuePreview());
+$("strength").addEventListener("input", e => {
+  $("strengthV").textContent = e.target.value + "%";
+});
+$("strength").addEventListener("change", () => queuePreview());
+$("photo").addEventListener("input", e => { $("photoV").textContent = e.target.value + "%"; });
+$("photo").addEventListener("change", () => queuePreview());
+$("quality").addEventListener("change", () => { costHint(); queuePreview(); });
+$("robust").addEventListener("change", () => queuePreview());
+$("bicubic").addEventListener("change", () => queuePreview());
+$("depthQuality").addEventListener("change", () => queuePreview());
+$("depthInvert").addEventListener("change", () => {
+  updateDepthInvertHint();
+  queuePreview();
+});
+$("tin").addEventListener("change", () => { drawRange(); queuePreview(); });
+$("tout").addEventListener("change", () => { drawRange(); queuePreview(); });
+$("tin").addEventListener("input", drawRange);
+$("tout").addEventListener("input", drawRange);
+bindSettingsControls();
+applySettingsToControls();
+applySettingsEffects();
+setProcessMode(S.processMode);
+setLanguage(LANG, false);
+$("btnRun").disabled = true;      // 未打开素材前不提供主操作
+
+/* ── 文件选择 ─────────────────────────────────────────── */
+let pickTarget = "src", curPath = "";
+let pickerReturnFocus = null;
+function chooseVideo(){
+  if (S.running){ toast(t("waitRender")); return; }
+  if (S.uploading){ toast(t("waitUpload")); return; }
+  const api = window.pywebview && window.pywebview.api;
+  if (api && api.select_video){
+    api.select_video().then(path => {
+      if (path) loadVideo(path);
+    }).catch(() => $("fileInput").click());
+  }else{
+    $("fileInput").click();
+  }
+}
+function uploadVideo(file){
+  if (!file) return;
+  S.uploading = true;
+  setStatus("uploading", {name: file.name});
+  setEta();
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/upload");
+  xhr.setRequestHeader("Content-Type", "application/octet-stream");
+  xhr.setRequestHeader("X-Filename", encodeURIComponent(file.name));
+  xhr.upload.onprogress = e => {
+    if (e.lengthComputable){
+      setStatus("uploadingProgress", {pct: Math.round(100 * e.loaded / e.total)});
+    }
+  };
+  xhr.onload = () => {
+    let d = {};
+    try { d = JSON.parse(xhr.responseText || "{}"); } catch(e){}
+    if (xhr.status >= 200 && xhr.status < 300 && d.ok){
+      S.uploading = false;
+      loadVideo(d.path);
+    }else{
+      S.uploading = false;
+      setStatus("ready");
+      toast(t("uploadFailed", {error: d.error || xhr.statusText || t("unknownError")}), true);
+    }
+  };
+  xhr.onerror = () => {
+    S.uploading = false;
+    setStatus("ready");
+    toast(t("uploadFailed", {error: xhr.statusText || t("unknownError")}), true);
+  };
+  xhr.send(file);
+}
+$("fileInput").addEventListener("change", e => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (file) uploadVideo(file);
+});
+
+function openPicker(target){
+  pickTarget = target === "depthDst" ? "depthDst" : target === "dst" ? "dst" : "src";
+  pickerReturnFocus = document.activeElement;
+  const cur = pickTarget === "src" ? S.src : $(pickTarget).value;
+  const start = cur && cur.indexOf(".") > 0 ? cur.replace(/[\\/][^\\/]*$/, "") : "";
+  loadList(start);
+}
+function loadList(path){
+  fetch("/api/list?path=" + encodeURIComponent(path)).then(r => r.json()).then(d => {
+    curPath = d.path;
+    $("mpath").textContent = d.path || t("selectDisk");
+    const el = $("mlist");
+    el.innerHTML = "";
+    if (d.parent !== null && d.path){
+      el.appendChild(row("i-arrow-up", t("parentDir"), () => loadList(d.parent)));
+    }
+    d.dirs.forEach(n => {
+      el.appendChild(row("i-folder", n, () =>
+        loadList((d.path || "").replace(/[\\/]$/, "") + (d.path ? "\\" : "") + n)));
+    });
+    d.files.forEach(n => {
+      el.appendChild(row("i-file-video", n, () => {
+        const full = d.path.replace(/[\\/]$/, "") + "\\" + n;
+        if (pickTarget === "src") loadVideo(full);
+        else { $(pickTarget).value = full; closeModal(); }
+      }, true));
+    });
+    $("modal").classList.add("on");
+    setTimeout(() => el.querySelector("button")?.focus(), 0);
+  }).catch(() => toast(t("listFailed"), true));
+}
+function row(iconId, label, onclick, isFile){
+  const x = document.createElement("button");
+  x.type = "button";
+  if (isFile) x.className = "f";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("class", "icon");
+  svg.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", "#" + iconId);
+  svg.appendChild(use);
+  const s = document.createElement("span"); s.textContent = label;
+  x.appendChild(svg); x.appendChild(s);
+  x.onclick = onclick;
+  return x;
+}
+function closeModal(){
+  if (!$("modal").classList.contains("on")) return;
+  $("modal").classList.remove("on");
+  if (pickerReturnFocus && pickerReturnFocus.focus) pickerReturnFocus.focus();
+  pickerReturnFocus = null;
+}
+function useDir(){
+  if (!curPath) return;
+  if (pickTarget === "src") loadVideo(curPath);
+  else {
+    const suffix = pickTarget === "depthDst" ? "_depth.mp4" : "_blur.mp4";
+    $(pickTarget).value = curPath.replace(/[\\/]$/, "") + "\\output" + suffix;
+    closeModal();
+  }
+}
+$("modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
+$("modal").addEventListener("keydown", e => {
+  if (e.key !== "Tab") return;
+  const items = [...$("modal").querySelectorAll("button:not(:disabled), input:not(:disabled)")];
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first){
+    e.preventDefault(); last.focus();
+  }else if (!e.shiftKey && document.activeElement === last){
+    e.preventDefault(); first.focus();
+  }
+});
+
+["hIn", "hOut"].forEach((id, index) => {
+  $(id).addEventListener("keydown", e => {
+    if (!S.src) return;
+    const direction = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+    if (!direction) return;
+    e.preventDefault();
+    const input = index === 0 ? $("tin") : $("tout");
+    const delta = direction * (e.shiftKey ? 5 : 1) / (S.fps || 30);
+    let value = (+input.value || 0) + delta;
+    if (index === 0){
+      value = Math.min(Math.max(0, value), +$("tout").value || S.dur);
+    }else{
+      value = Math.max(Math.min(S.dur, value), +$("tin").value || 0);
+    }
+    input.value = value.toFixed(2);
+    drawRange();
+    queuePreview();
+  });
+});
+
+/* ── 最近打开 ─────────────────────────────────────────── */
+const RECENT_KEY = "cinedit.recent";
+function readRecent(){
+  try{ return JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); }catch(e){ return []; }
+}
+function pushRecent(p){
+  let list = readRecent().filter(x => x !== p);
+  list.unshift(p);
+  list = list.slice(0, 5);
+  try{ localStorage.setItem(RECENT_KEY, JSON.stringify(list)); }catch(e){}
+  renderRecent();
+}
+function renderRecent(){
+  const list = readRecent();
+  const box = $("recent"), wrap = $("recentList");
+  if (!list.length){ box.hidden = true; return; }
+  box.hidden = false;
+  wrap.innerHTML = "";
+  list.forEach(p => {
+    const b = document.createElement("button");
+    b.textContent = displayName(p);
+    b.title = p;
+    b.onclick = () => loadVideo(p);
+    wrap.appendChild(b);
+  });
+}
+renderRecent();
+
+/* ── 载入素材 ─────────────────────────────────────────── */
+function loadVideo(path){
+  closeModal();
+  if (S.running){ toast(t("waitRender")); return; }
+  if (S.uploading){ toast(t("waitUpload")); return; }
+  stopPreviewPlayback();
+  fetch("/api/info?path=" + encodeURIComponent(path)).then(r => r.json()).then(d => {
+    if (!d.ok){
+      toast(t("cannotRead", {error: d.error || t("unknownError")}), true);
+      return;
+    }
+    S.src = path; S.dur = d.duration; S.fps = d.fps || 30;
+    S.uploading = false;
+    updateDepthSourceWarning();
+    S.origKey = "";
+    if (S.origUrl){ URL.revokeObjectURL(S.origUrl); S.origUrl = ""; }
+    if (S.blurUrl){ URL.revokeObjectURL(S.blurUrl); S.blurUrl = ""; }
+    const chip = $("fileChip");
+    chip.classList.remove("empty");
+    $("fileChipName").textContent = displayName(path);
+    $("fileMeta").textContent = d.width + "×" + d.height + " · " +
+      (d.fps || 0).toFixed(2) + "fps";
+    $("tdur").textContent = fmt(d.duration);
+    $("dst").value = defaultOutputPath(path, "blur");
+    $("depthDst").value = defaultOutputPath(path, "depth");
+    $("tout").value = d.duration.toFixed(2);
+    $("tin").value = "0";
+    drawRange();
+    setTime(d.duration * 0.45, false);
+    pushRecent(path);
+    syncAngle();
+    $("btnRun").disabled = false;
+    setStatus("ready");
+    setEta();
+    fetchPreview();
+  }).catch(e => {
+    S.uploading = false;
+    toast(t("readFailed", {error: e.message}), true);
+  });
+}
+
+/* ── 渲染 ─────────────────────────────────────────────── */
+function runPrimary(){
+  if (S.running){ cancelRender(); return; }
+  if (S.uploading){ toast(t("waitUpload")); return; }
+  startRender();
+}
+function startRender(){
+  if (!S.src){ toast(t("openFirst")); return; }
+  stopPreviewPlayback();
+  const p = params();
+  const renderMode = S.processMode;
+  const outputId = renderMode === "depth" ? "depthDst" : "dst";
+  const body = {
+    mode: renderMode, src: S.src, dst: $(outputId).value.trim(),
+    trim_start: +$("tin").value || 0, trim_end: +$("tout").value || 0,
+    device: APP_SETTINGS.device,
+    preserve_outputs: APP_SETTINGS.preserveOutputs
+  };
+  if (renderMode === "depth"){
+    body.quality = $("depthQuality").value;
+    body.invert = $("depthInvert").checked;
+    body.preview = +$("depthRes").value;
+    body.codec = $("depthCodec").value;
+  }else{
+    body.angle = p.angle;
+    body.samples = p.samples;
+    body.strength = p.strength;
+    body.photometric = p.photometric;
+    body.quality = p.quality;
+    body.robust = p.robust;
+    body.bicubic = p.bicubic;
+    body.preview = +$("res").value;
+    body.codec = $("codec").value;
+  }
+  S.breakdownParts = null;
+  renderBreakdown();
+  $("log").textContent = "";
+  $("logs").hidden = true;
+  $("logs").open = false;
+  $("bar").style.width = "0%";
+  $("tprog").style.width = "0%";
+  S.completedOutput = "";
+  $("reveal").hidden = true;
+  S.running = true;
+  S.starting = true;
+  S.cancelPending = false;
+  setModeSwitchDisabled(true);
+  $("btnRun").textContent = t("cancelRender");
+  $("btnRun").classList.remove("solid");
+  $("btnRun").classList.add("ghost");
+  setStatus("starting");
+  fetch("/api/start", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(body)
+  }).then(r => r.json()).then(d => {
+    S.starting = false;
+    if (!d.ok){
+      toast(t("startFailed") + (d.error ? ": " + d.error : ""), true);
+      resetRunUI();
+    }else{
+      $(outputId).value = d.output;
+      if (S.cancelPending) requestCancel();
+    }
+  }).catch(e => {
+    S.starting = false;
+    toast(t("startFailed") + ": " + e.message, true);
+    resetRunUI();
+  });
+}
+function cancelRender(){
+  setStatus("cancelling");
+  if (S.starting){
+    S.cancelPending = true;
+    return;
+  }
+  requestCancel();
+}
+function requestCancel(){
+  fetch("/api/cancel", {method: "POST"}).catch(e => {
+    toast(t("renderFailed", {error: e.message}), true);
+  });
+}
+function resetRunUI(){
+  S.running = false;
+  S.starting = false;
+  S.cancelPending = false;
+  setModeSwitchDisabled(false);
+  $("btnRun").textContent = t("startRender");
+  $("btnRun").classList.add("solid");
+  $("btnRun").classList.remove("ghost");
+}
+function reveal(){
+  if (!S.completedOutput){
+    toast(t("outputMissing"), true);
+    return;
+  }
+  fetch("/api/open", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({path: S.completedOutput})
+  });
+}
+
+/* ── 进度流 ───────────────────────────────────────────── */
+let since = 0;
+function showBreakdown(prof){
+  if (!prof) return;
+  const parts = {
+    flow: prof.flow_ms ? Math.round(prof.flow_ms) : "—",
+    render: prof.render_ms ? Math.round(prof.render_ms) : "—",
+    dec: prof.dec_ms ? Math.round(prof.dec_ms) : "—",
+    enc: prof.enc_ms ? Math.round(prof.enc_ms) : "—"
+  };
+  if (Object.values(parts).every(v => v === "—")) return;
+  S.breakdownParts = parts;
+  renderBreakdown();
+}
+function renderBreakdown(){
+  const el = $("breakdown");
+  if (!S.breakdownParts){
+    el.classList.remove("on");
+    el.textContent = "";
+    return;
+  }
+  el.textContent = t("breakdown", S.breakdownParts);
+  el.classList.add("on");
+}
+function connect(){
+  const es = new EventSource("/api/events?since=" + since);
+  es.onmessage = ev => {
+    const d = JSON.parse(ev.data);
+    since = d.since;
+    const p = d.progress || {};
+    if (d.running && p.total){
+      const pct = 100 * p.done / p.total;
+      $("bar").style.width = pct.toFixed(1) + "%";
+      $("tprog").style.width = pct.toFixed(1) + "%";
+      setStatus("rendering", {done: p.done, total: p.total});
+      setEta("fpsEta", {fps: p.fps.toFixed(2), time: fmtShort(p.eta)});
+      if (!S.running){
+        S.running = true;
+        S.starting = false;
+        S.cancelPending = false;
+        setModeSwitchDisabled(true);
+        $("btnRun").textContent = t("cancelRender");
+        $("btnRun").classList.remove("solid");
+        $("btnRun").classList.add("ghost");
+      }
+    }
+    if (d.log && d.log.length){
+      const el = $("log");
+      el.textContent += d.log.join("\n") + "\n";
+      el.scrollTop = el.scrollHeight;
+      $("logs").hidden = false;
+    }
+    if (!d.running && d.result && !d.result.cancelled){
+      S.completedOutput = d.result.output || d.output || "";
+      $("reveal").hidden = !S.completedOutput;
+    }
+    if (!d.running && S.running){
+      resetRunUI();
+      if (d.error){
+        setStatus("failed");
+        setEta();
+        toast(t("renderFailed", {error: d.error}), true);
+      }else if (d.result && d.result.cancelled){
+        setStatus("cancelled");
+        setEta();
+      }else if (d.result){
+        $("bar").style.width = "100%";
+        $("tprog").style.width = "100%";
+        setStatus("complete", {frames: d.result.frames});
+        setEta("fpsSize", {fps: d.result.fps.toFixed(2), size: d.result.size});
+        showBreakdown(d.result.profile);
+        toast(t("renderComplete"));
+        if (APP_SETTINGS.autoOpenOutput) reveal();
+      }
+    }
+  };
+  es.onerror = () => { es.close(); setTimeout(connect, 1500); };
+}
+connect();
+
+/* ── 键盘 ─────────────────────────────────────────────── */
+document.addEventListener("keydown", e => {
+  const tag = e.target.tagName;
+  const typing = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA" || tag === "BUTTON";
+  if (e.key === "Escape"){
+    if ($("settingsModal").classList.contains("on")){
+      closeSettings();
+    }else{
+      closeModal();
+      toggleRail(false);
+    }
+    return;
+  }
+  if ($("settingsModal").classList.contains("on")) return;
+  if (typing) return;
+  if (e.key === "ArrowLeft"){ e.preventDefault(); step(e.shiftKey ? -5 : -1); }
+  else if (e.key === "ArrowRight"){ e.preventDefault(); step(e.shiftKey ? 5 : 1); }
+  else if (e.key === "["){ preset(Math.max(0, +$("angle").value - 30)); }
+  else if (e.key === "]"){ preset(Math.min(360, +$("angle").value + 30)); }
+  else if (e.key === "c"){ cycleMode(); }
+  else if (e.key === " "){ e.preventDefault(); togglePreviewPlayback(); }
+});
+function cycleMode(){
+  const order = ["compare", "orig", "blur"];
+  setMode(order[(order.indexOf(S.mode) + 1) % 3]);
+}
+
+/* ── 侧栏（窄屏抽屉） ─────────────────────────────────── */
+function toggleRail(force){
+  const on = force === undefined ? !$("inspector").classList.contains("open") : force;
+  $("inspector").classList.toggle("open", on);
+  $("scrim").classList.toggle("on", on);
+  $("railToggle").setAttribute("aria-expanded", String(on));
+}
+
+/* ── 环境 ─────────────────────────────────────────────── */
+fetch("/api/env").then(r => r.json()).then(d => {
+  const chip = $("gpuChip");
+  S.cuda = !!d.cuda;
+  S.gpuName = d.gpu || "";
+  S.depthModelAvailable = d.depth_model !== false;
+  updateDepthModelState();
+  if (d.cuda && d.gpu){
+    chip.classList.add("on");
+    $("gpuText").textContent = S.gpuName.replace(/NVIDIA\s*/i, "");
+  }else{
+    $("gpuText").textContent = t("cpuMode");
+  }
+  if (!d.ffmpeg) toast(t("ffmpegMissing"), true);
+}).catch(() => {});
+
+/* 支持 ?open=<路径>（命令行传参 / 拖到程序图标） */
+(function(){
+  const p = new URLSearchParams(location.search).get("open");
+  if (p) loadVideo(p);
+})();
+</script>
+</body>
+</html>

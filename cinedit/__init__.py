@@ -1,4 +1,4 @@
-"""CineBlur —— 基于光流子帧采样的物理级运动模糊。
+"""CineEdit —— 基于光流子帧采样的物理级运动模糊。
 
 与 ReelSmart Motion Blur 的核心差异：
 1. 线性光空间积分（RSMB 在 gamma 空间平均，亮背景前会产生过量光晕）

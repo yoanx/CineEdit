@@ -1,5 +1,5 @@
-﻿; CineBlur 安装包脚本（Inno Setup 6）
-; 编译：ISCC.exe installer\CineBlur.iss
+﻿; CineEdit 安装包脚本（Inno Setup 6）
+; 编译：ISCC.exe installer\CineEdit.iss
 ;
 ; 设计取舍
 ;   · PrivilegesRequired=lowest —— 装到 %LOCALAPPDATA%，全程不弹 UAC，
@@ -9,10 +9,10 @@
 ;   · 不额外安装运行库：torch 的 CUDA DLL、VC++ 运行时、ffmpeg、
 ;     RAFT 权重全部已在 dist 内，装完即可离线使用
 
-#define AppName "CineBlur"
+#define AppName "CineEdit"
 #define AppVersion "1.0.0"
-#define AppPublisher "CineBlur"
-#define AppExeName "CineBlur.exe"
+#define AppPublisher "CineEdit"
+#define AppExeName "CineEdit.exe"
 
 [Setup]
 AppId={{9C4B7E2A-5D31-4A8E-B6F2-73A1C0D95E48}
@@ -20,12 +20,12 @@ AppName={#AppName}
 AppVersion={#AppVersion}
 AppVerName={#AppName} {#AppVersion}
 AppPublisher={#AppPublisher}
-DefaultDirName={localappdata}\Programs\CineBlur
+DefaultDirName={localappdata}\Programs\CineEdit
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=out
-OutputBaseFilename=CineBlur-Setup-{#AppVersion}
+OutputBaseFilename=CineEdit-Setup-{#AppVersion}
 SetupIconFile=..\assets\icon.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 UninstallDisplayName={#AppName} 运动模糊渲染器
@@ -50,7 +50,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; \
     GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\dist\CineBlur\*"; DestDir: "{app}"; \
+Source: "..\dist\CineEdit\*"; DestDir: "{app}"; \
     Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]

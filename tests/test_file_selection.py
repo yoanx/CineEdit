@@ -6,8 +6,8 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-from cineblur.app import DesktopApi
-from cineblur.webui import save_upload
+from cinedit.app import DesktopApi
+from cinedit.webui import save_upload
 
 
 class DesktopDialogTests(unittest.TestCase):

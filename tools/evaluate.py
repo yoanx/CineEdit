@@ -22,10 +22,10 @@ from fractions import Fraction
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from cineblur.config import BlurConfig
-from cineblur.imageops import linear_to_srgb, srgb_to_linear
-from cineblur.media import Decoder, Encoder, find_exe
-from cineblur.pipeline import MotionBlurRenderer
+from cinedit.config import BlurConfig
+from cinedit.imageops import linear_to_srgb, srgb_to_linear
+from cinedit.media import Decoder, Encoder, find_exe
+from cinedit.pipeline import MotionBlurRenderer
 
 W, H = 640, 360
 FPS = 30
@@ -178,7 +178,7 @@ def main():
 
 def _render_with_engine(renderer: MotionBlurRenderer, src: str, dst: str, engine: str):
     """复用 pipeline 的渲染循环，但把 engine 参数注入单帧渲染。"""
-    import cineblur.pipeline as pl
+    import cinedit.pipeline as pl
     orig = pl.render_frame
 
     def patched(*a, **kw):
